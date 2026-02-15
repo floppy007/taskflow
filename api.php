@@ -394,6 +394,7 @@ switch ($action) {
 
         $name = $input['name'] ?? '';
         $desc = $input['desc'] ?? '';
+        $color = $input['color'] ?? '';
 
         if (empty($name)) {
             response(false, null, msg('project_name_required'));
@@ -406,6 +407,7 @@ switch ($action) {
             'id' => $newId,
             'name' => $name,
             'desc' => $desc,
+            'color' => $color,
             'createdBy' => $_SESSION['user']['id'],
             'createdAt' => date('c'),
             'todos' => []
@@ -426,6 +428,7 @@ switch ($action) {
         $projectId = $input['id'] ?? 0;
         $name = $input['name'] ?? '';
         $desc = $input['desc'] ?? '';
+        $color = $input['color'] ?? null;
 
         $projects = loadProjects();
         $found = false;
@@ -434,6 +437,7 @@ switch ($action) {
             if ($p['id'] == $projectId) {
                 if (!empty($name)) $p['name'] = $name;
                 $p['desc'] = $desc;
+                if ($color !== null) $p['color'] = $color;
                 $found = true;
                 break;
             }
@@ -738,6 +742,48 @@ switch ($action) {
             ]);
         } else {
             response(false, ['output' => $outputStr], msg('update_failed'));
+        }
+        break;
+
+    case 'reorderTodos':
+        if (!isset($_SESSION['user'])) {
+            response(false, null, msg('not_logged_in'));
+        }
+
+        $projectId = $input['projectId'] ?? 0;
+        $todoIds = $input['todoIds'] ?? [];
+
+        $projects = loadProjects();
+        $found = false;
+
+        foreach ($projects as &$p) {
+            if ($p['id'] == $projectId) {
+                $todosById = [];
+                foreach ($p['todos'] as $td) {
+                    $todosById[$td['id']] = $td;
+                }
+                $reordered = [];
+                foreach ($todoIds as $id) {
+                    if (isset($todosById[$id])) {
+                        $reordered[] = $todosById[$id];
+                        unset($todosById[$id]);
+                    }
+                }
+                // Append any remaining todos not in the reorder list
+                foreach ($todosById as $td) {
+                    $reordered[] = $td;
+                }
+                $p['todos'] = $reordered;
+                $found = true;
+                break;
+            }
+        }
+
+        if ($found) {
+            saveProjects($projects);
+            response(true);
+        } else {
+            response(false, null, msg('project_not_found'));
         }
         break;
 

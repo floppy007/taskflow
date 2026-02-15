@@ -13,6 +13,12 @@ let currentProjectId = null;
 let currentTodoView = 'active';
 let currentProjectView = 'list';
 
+const projectColors = [
+  '#667eea','#3b82f6','#06b6d4','#0d9488','#10b981',
+  '#84cc16','#f59e0b','#f97316','#ef4444','#ec4899',
+  '#8b5cf6','#6366f1'
+];
+
 // i18n
 let translations = {};
 let currentLang = 'de';
@@ -321,8 +327,23 @@ function openFeedback() {
 }
 
 function openNewProjectModal() {
+  document.getElementById('newProjectColor').value = '';
+  renderColorPicker('newProjectColorPicker', 'newProjectColor', '');
   document.getElementById('newProjectModal').classList.add('active');
   document.getElementById('newProjectName').focus();
+}
+
+function renderColorPicker(containerId, inputId, activeColor) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = projectColors.map(c =>
+    `<div class="color-dot ${c === activeColor ? 'active' : ''}" style="background:${c}" onclick="selectProjectColor('${inputId}','${containerId}','${c}')"></div>`
+  ).join('');
+}
+
+function selectProjectColor(inputId, containerId, color) {
+  document.getElementById(inputId).value = color;
+  document.querySelectorAll(`#${containerId} .color-dot`).forEach(d => d.classList.remove('active'));
+  event.target.classList.add('active');
 }
 
 function closeModal(id) {
@@ -338,7 +359,8 @@ async function createProject() {
     return;
   }
 
-  const result = await apiCall('createProject', {name, desc});
+  const color = document.getElementById('newProjectColor').value;
+  const result = await apiCall('createProject', {name, desc, color});
 
   if (result.success) {
     await loadProjectsFromServer();
@@ -451,8 +473,8 @@ function renderDashboard() {
     const pct = total ? Math.round((done / total) * 100) : 0;
 
     return `
-      <div class="project-card" onclick="openProjectDetail(${p.id})">
-        <div class="project-icon">📁</div>
+      <div class="project-card" onclick="openProjectDetail(${p.id})" ${p.color ? `style="border-top:3px solid ${p.color}"` : ''}>
+        <div class="project-icon" ${p.color ? `style="background:${p.color}20;color:${p.color}"` : ''}>📁</div>
         <div class="project-header">
           <div>
             <div class="project-title">${escapeHtml(p.name)}</div>
@@ -511,7 +533,7 @@ function renderProjects() {
     const pct = total ? Math.round((done / total) * 100) : 0;
 
     return `
-      <div class="project-card" onclick="openProjectDetail(${p.id})">
+      <div class="project-card" onclick="openProjectDetail(${p.id})" ${p.color ? `style="border-top:3px solid ${p.color}"` : ''}>
         <div class="project-icon">📁</div>
         <button class="project-menu" onclick="event.stopPropagation();deleteProject(${p.id})">⋮</button>
         <div class="project-title">${escapeHtml(p.name)}</div>
@@ -607,22 +629,32 @@ function backToProjects() {
   showProjects();
 }
 
-async function editProject() {
+function editProject() {
   const project = projects.find(p => p.id === currentProjectId);
   if (!project) return;
 
-  const newName = prompt(t('projects.prompt_name'), project.name);
-  if (!newName || !newName.trim()) return;
+  document.getElementById('editProjectName').value = project.name;
+  document.getElementById('editProjectDesc').value = project.desc || '';
+  document.getElementById('editProjectColor').value = project.color || '';
+  renderColorPicker('editProjectColorPicker', 'editProjectColor', project.color || '');
 
-  const newDesc = prompt(t('projects.prompt_desc'), project.desc);
+  document.getElementById('editProjectModal').classList.add('active');
+  document.getElementById('editProjectName').focus();
+}
+
+async function saveEditProject() {
+  const name = document.getElementById('editProjectName').value.trim();
+  if (!name) { alert(t('projects.name_required')); return; }
 
   const result = await apiCall('updateProject', {
     id: currentProjectId,
-    name: newName.trim(),
-    desc: newDesc !== null ? newDesc.trim() : project.desc
+    name,
+    desc: document.getElementById('editProjectDesc').value.trim(),
+    color: document.getElementById('editProjectColor').value
   });
 
   if (result.success) {
+    closeModal('editProjectModal');
     await loadProjectsFromServer();
     const updated = projects.find(p => p.id === currentProjectId);
     document.getElementById('projectDetailTitle').textContent = updated.name;
@@ -810,7 +842,8 @@ function renderProjectTodos() {
 
     grouped[category].forEach(todo => {
       html += `
-        <div class="todo-item ${todo.done ? 'done' : ''}">
+        <div class="todo-item ${todo.done ? 'done' : ''}" draggable="true" data-todo-id="${todo.id}" ondragstart="todoDragStart(event)" ondragover="todoDragOver(event)" ondrop="todoDrop(event)" ondragend="todoDragEnd(event)">
+          <div class="todo-drag-handle" title="Drag to reorder">⋮⋮</div>
           <div class="todo-checkbox ${todo.done ? 'checked' : ''}" onclick="toggleTodo(${todo.id})">
             ${todo.done ? '✓' : ''}
           </div>
@@ -1407,6 +1440,57 @@ function escapeHtml(str) {
   const div = document.createElement('div');
   div.textContent = str;
   return div.innerHTML;
+}
+
+// Todo Drag & Drop Reorder
+let draggedTodoId = null;
+
+function todoDragStart(e) {
+  draggedTodoId = parseInt(e.currentTarget.dataset.todoId);
+  e.currentTarget.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+}
+
+function todoDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  const item = e.currentTarget.closest('.todo-item');
+  if (item) {
+    document.querySelectorAll('.todo-item.drag-over').forEach(el => el.classList.remove('drag-over'));
+    item.classList.add('drag-over');
+  }
+}
+
+function todoDragEnd(e) {
+  e.currentTarget.classList.remove('dragging');
+  document.querySelectorAll('.todo-item.drag-over').forEach(el => el.classList.remove('drag-over'));
+  draggedTodoId = null;
+}
+
+async function todoDrop(e) {
+  e.preventDefault();
+  const targetItem = e.currentTarget.closest('.todo-item');
+  if (!targetItem) return;
+  const targetId = parseInt(targetItem.dataset.todoId);
+  if (draggedTodoId === null || draggedTodoId === targetId) return;
+
+  const project = projects.find(p => p.id === currentProjectId);
+  if (!project) return;
+
+  const todos = project.todos || [];
+  const todoIds = todos.map(t => t.id);
+  const fromIdx = todoIds.indexOf(draggedTodoId);
+  const toIdx = todoIds.indexOf(targetId);
+  if (fromIdx === -1 || toIdx === -1) return;
+
+  todoIds.splice(fromIdx, 1);
+  todoIds.splice(toIdx, 0, draggedTodoId);
+
+  const result = await apiCall('reorderTodos', { projectId: currentProjectId, todoIds });
+  if (result.success) {
+    await loadProjectsFromServer();
+    renderProjectTodos();
+  }
 }
 
 // Start app
