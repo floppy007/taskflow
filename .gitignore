@@ -1,6 +1,7 @@
 # Benutzerdaten (nicht überschreiben bei Updates)
 data/users.json
 data/projects.json
+data/activity.json
 
 # Generierte Dateien
 favicon.png

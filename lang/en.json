@@ -82,6 +82,8 @@
   "project_detail.stat_open": "Open",
   "project_detail.stat_done": "Done",
   "project_detail.stat_progress": "Progress",
+  "project_detail.list_view": "List",
+  "project_detail.kanban_view": "Kanban",
 
   "todos.new_title": "New Task",
   "todos.task_label": "Task",
@@ -115,6 +117,10 @@
   "todos.delete_confirm": "Really delete this task?",
   "todos.created_by": "Created by",
   "todos.closed_by": "Closed by",
+  "todos.due_date": "Due Date",
+  "todos.due_overdue": "Overdue",
+  "todos.due_today": "Today",
+  "todos.prompt_due_date": "Due date (YYYY-MM-DD):",
 
   "settings.title": "Settings",
   "settings.subtitle": "Design & Data",
@@ -131,6 +137,9 @@
   "settings.backup_desc": "Export or import your data as a JSON file",
   "settings.export_btn": "Export data",
   "settings.import_btn": "Import data",
+  "settings.darkmode_title": "Dark Mode",
+  "settings.darkmode_desc": "Toggle dark backgrounds for all themes",
+  "settings.darkmode_toggle": "Enable Dark Mode",
   "settings.danger_title": "Reset",
   "settings.danger_desc": "Delete all data permanently",
   "settings.danger_btn": "Reset all data",
@@ -175,5 +184,26 @@
   "modal.project_desc": "Description",
   "modal.project_desc_placeholder": "Short description of the project",
   "modal.create": "Create project",
-  "modal.cancel": "Cancel"
+  "modal.cancel": "Cancel",
+
+  "kanban.col_todo": "To Do",
+  "kanban.col_inprogress": "In Progress",
+  "kanban.col_done": "Done",
+
+  "search.no_results": "No results found",
+  "search.type_project": "Project",
+  "search.type_task": "Task",
+
+  "activity.title": "Recent Activity",
+  "activity.empty": "No activity yet",
+  "activity.user_login": "logged in",
+  "activity.project_created": "created a project",
+  "activity.project_deleted": "deleted a project",
+  "activity.todo_created": "added a task",
+  "activity.todo_completed": "completed a task",
+  "activity.todo_deleted": "deleted a task",
+  "activity.just_now": "Just now",
+  "activity.minutes_ago": "min ago",
+  "activity.hours_ago": "hours ago",
+  "activity.days_ago": "days ago"
 }
