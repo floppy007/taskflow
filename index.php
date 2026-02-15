@@ -1352,6 +1352,18 @@ if (!file_exists(__DIR__ . '/data/users.json') && file_exists(__DIR__ . '/instal
   .search-result-context { font-size:12px; color:var(--text-muted); margin-top:2px; }
   .search-no-results { padding:24px 16px; text-align:center; color:var(--text-muted); font-size:14px; }
 
+  /* Todo Drag Handle */
+  .todo-drag-handle { cursor:grab; color:var(--text-light); font-size:18px; padding:4px; user-select:none; display:flex; align-items:center; }
+  .todo-drag-handle:active { cursor:grabbing; }
+  .todo-item.dragging { opacity:.5; border-style:dashed; }
+  .todo-item.drag-over { background:rgba(99,102,241,.08); border-left:3px solid var(--primary); }
+
+  /* Project Color Picker */
+  .color-picker-row { display:flex; gap:8px; flex-wrap:wrap; }
+  .color-dot { width:28px; height:28px; border-radius:50%; cursor:pointer; border:3px solid transparent; transition:all .2s; }
+  .color-dot:hover { transform:scale(1.15); }
+  .color-dot.active { border-color:var(--text); box-shadow:0 0 0 2px var(--card), 0 0 0 4px var(--text-muted); }
+
   /* Activity Feed */
   .activity-item { display:flex; gap:12px; padding:12px 0; border-bottom:1px solid var(--border-light); align-items:start; }
   .activity-item:last-child { border-bottom:none; }
@@ -2092,9 +2104,46 @@ if (!file_exists(__DIR__ . '/data/users.json') && file_exists(__DIR__ . '/instal
       <textarea class="form-input" id="newProjectDesc" data-i18n-placeholder="modal.project_desc_placeholder" placeholder="Kurze Beschreibung des Projekts" style="min-height:100px;resize:vertical"></textarea>
     </div>
 
+    <div class="form-group">
+      <label class="form-label" data-i18n="modal.project_color">Farbe</label>
+      <input type="hidden" id="newProjectColor" value="">
+      <div class="color-picker-row" id="newProjectColorPicker"></div>
+    </div>
+
     <div style="display:flex;gap:12px;margin-top:24px">
       <button class="btn btn-primary" onclick="createProject()" style="flex:1" data-i18n="modal.create">Projekt erstellen</button>
       <button class="btn btn-ghost" onclick="closeModal('newProjectModal')" data-i18n="modal.cancel">Abbrechen</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Project Modal -->
+<div class="modal" id="editProjectModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2 class="modal-title" data-i18n="modal.edit_project">Projekt bearbeiten</h2>
+      <button class="modal-close" onclick="closeModal('editProjectModal')">×</button>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" data-i18n="modal.project_name">Projektname</label>
+      <input type="text" class="form-input" id="editProjectName">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" data-i18n="modal.project_desc">Beschreibung</label>
+      <textarea class="form-input" id="editProjectDesc" style="min-height:100px;resize:vertical"></textarea>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" data-i18n="modal.project_color">Farbe</label>
+      <input type="hidden" id="editProjectColor" value="">
+      <div class="color-picker-row" id="editProjectColorPicker"></div>
+    </div>
+
+    <div style="display:flex;gap:12px;margin-top:24px">
+      <button class="btn btn-primary" onclick="saveEditProject()" style="flex:1" data-i18n="modal.save">Speichern</button>
+      <button class="btn btn-ghost" onclick="closeModal('editProjectModal')" data-i18n="modal.cancel">Abbrechen</button>
     </div>
   </div>
 </div>
