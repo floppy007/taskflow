@@ -9,6 +9,12 @@
 
 ---
 
+> **[Deutsch](#deutsch)** | **[English](#english)**
+
+---
+
+<a id="english"></a>
+
 ## Features
 
 - User login & registration
@@ -145,6 +151,90 @@ User data (`data/users.json`, `data/projects.json`) is excluded from updates via
 ## License
 
 Copyright (c) 2026 Florian Hesse. All rights reserved.
+
+---
+
+<a id="deutsch"></a>
+
+## Deutsch
+
+### Funktionen
+
+- Benutzer-Login & Registrierung
+- Projekte erstellen und verwalten
+- To-Do-Listen mit Kategorien und Prioritäten
+- 6 verschiedene Farbthemen
+- Archiv-Funktion für erledigte Aufgaben
+- Export/Import als JSON
+- In-App Update-System (git pull)
+- Dynamische Animationen & sanfte Übergänge
+- Mehrsprachig (DE/EN)
+
+### Voraussetzungen
+
+- PHP 7.4 oder höher
+- Webserver (Apache, Nginx oder PHP Built-in Server)
+- Schreibrechte für das `/data` Verzeichnis
+
+### Installation
+
+#### Variante 1: Mit Apache/Nginx
+
+1. Projekt in den Webserver-Ordner kopieren:
+   ```bash
+   cp -r taskflow /var/www/html/taskflow
+   ```
+
+2. Schreibrechte für den data-Ordner setzen:
+   ```bash
+   chmod 755 /var/www/html/taskflow/data
+   ```
+
+3. Im Browser öffnen:
+   ```
+   http://localhost/taskflow
+   ```
+
+#### Variante 2: PHP Built-in Server (Entwicklung)
+
+1. In das Projekt-Verzeichnis wechseln:
+   ```bash
+   cd taskflow
+   ```
+
+2. PHP Server starten:
+   ```bash
+   php -S localhost:8000
+   ```
+
+3. Im Browser öffnen:
+   ```
+   http://localhost:8000
+   ```
+
+### Standard-Login
+
+- **Benutzername:** admin
+- **Passwort:** admin
+
+### Sicherheit
+
+**WICHTIG:** Für den Produktiv-Einsatz:
+
+1. **Passwörter ändern:** Standard-Admin-Passwort sofort ändern!
+2. **HTTPS verwenden:** Niemals über HTTP in Produktion betreiben!
+3. **data-Ordner schützen:** Die `.htaccess` im `/data`-Ordner ist bereits enthalten.
+4. **Session-Sicherheit:** In `api.php` die Session-Einstellungen anpassen.
+
+### Updates
+
+TaskFlow hat ein eingebautes Update-System. Unter **Einstellungen > Updates** auf "Update prüfen" klicken. Falls eine neue Version verfügbar ist, kann sie direkt per "Update installieren" von GitHub geladen werden.
+
+Benutzerdaten (`data/users.json`, `data/projects.json`) werden bei Updates nicht überschrieben.
+
+### Lizenz
+
+Copyright (c) 2026 Florian Hesse. Alle Rechte vorbehalten.
 
 ---
 
