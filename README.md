@@ -108,33 +108,6 @@ taskflow/
    ]);
    ```
 
-## API Endpoints
-
-All requests to `api.php?action=...`:
-
-| Action | Description |
-|--------|-------------|
-| `login` | User login |
-| `register` | Create new user |
-| `logout` | Sign out |
-| `getSession` | Check current session |
-| `getUsers` | Get all users |
-| `createUser` | Create user (admin) |
-| `deleteUser` | Delete user (admin) |
-| `changePassword` | Change password |
-| `getProjects` | Get all projects |
-| `createProject` | Create new project |
-| `updateProject` | Edit project |
-| `deleteProject` | Delete project |
-| `addTodo` | Add to-do |
-| `updateTodo` | Update to-do |
-| `deleteTodo` | Delete to-do |
-| `exportData` | Export data |
-| `importData` | Import data |
-| `getVersion` | Get current version |
-| `checkUpdate` | Check for updates |
-| `doUpdate` | Install update (git pull) |
-
 ## Updates
 
 TaskFlow includes a built-in update system. Go to **Settings > Updates** and click "Check for update". If a new version is available, click "Install update" to pull the latest changes from GitHub.
