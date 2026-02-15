@@ -116,7 +116,7 @@ User data (`data/users.json`, `data/projects.json`) is excluded from updates via
 
 ## License
 
-Free to use for personal and commercial projects. The copyright footer must not be modified or removed.
+See [LICENSE](LICENSE) for full details. Free to use, modify, and distribute — the copyright footer in the app must remain intact.
 
 ---
 
@@ -191,7 +191,7 @@ Benutzerdaten (`data/users.json`, `data/projects.json`) werden bei Updates nicht
 
 ### Lizenz
 
-Frei verwendbar für persönliche und kommerzielle Projekte. Der Copyright-Footer darf nicht verändert oder entfernt werden.
+Siehe [LICENSE](LICENSE) für Details. Frei nutzbar, veränderbar und verteilbar — der Copyright-Footer in der App muss erhalten bleiben.
 
 ---
 
