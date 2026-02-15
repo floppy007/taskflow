@@ -8,11 +8,12 @@
  * https://comnic-it.de
  */
 
-$repoUrl = 'https://github.com/floppy007/taskflow';
+$repoOwner = 'floppy007';
+$repoName = 'taskflow';
 $branch = 'main';
 $error = '';
 $success = false;
-$step = 'setup'; // setup, installing, done
+$downloaded = 0;
 
 $installDir = __DIR__;
 $dataDir = $installDir . '/data';
@@ -26,50 +27,80 @@ if (file_exists($installDir . '/index.php') && file_exists($dataDir . '/users.js
 // Check if files are downloaded but no user yet
 $filesExist = file_exists($installDir . '/index.php') && file_exists($installDir . '/api.php');
 
+// HTTP context for GitHub API
+function ghContext() {
+    return stream_context_create([
+        'http' => [
+            'timeout' => 30,
+            'header' => "User-Agent: TaskFlow-Installer\r\n",
+            'follow_location' => true
+        ]
+    ]);
+}
+
+// Download a single file from GitHub raw
+function downloadFile($owner, $repo, $branch, $path, $destDir) {
+    $url = "https://raw.githubusercontent.com/$owner/$repo/$branch/$path";
+    $content = @file_get_contents($url, false, ghContext());
+    if ($content === false) return false;
+
+    $destPath = $destDir . '/' . $path;
+    $destFolder = dirname($destPath);
+    if (!is_dir($destFolder)) @mkdir($destFolder, 0755, true);
+
+    return file_put_contents($destPath, $content) !== false;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
 
     if ($action === 'download') {
-        // Step 1: Download from GitHub
-        $zipUrl = $repoUrl . '/archive/refs/heads/' . $branch . '.zip';
-        $tmpZip = sys_get_temp_dir() . '/taskflow_' . time() . '.zip';
+        // Step 1: Get file list from GitHub API (tree)
+        $apiUrl = "https://api.github.com/repos/$repoOwner/$repoName/git/trees/$branch?recursive=1";
+        $treeJson = @file_get_contents($apiUrl, false, ghContext());
 
-        $ctx = stream_context_create([
-            'http' => [
-                'timeout' => 30,
-                'header' => 'User-Agent: TaskFlow-Installer',
-                'follow_location' => true
-            ]
-        ]);
-
-        $zipData = @file_get_contents($zipUrl, false, $ctx);
-        if ($zipData === false) {
-            $error = 'Could not download from GitHub. Check your internet connection.';
+        if ($treeJson === false) {
+            $error = 'Could not connect to GitHub API. Check your internet connection.';
         } else {
-            file_put_contents($tmpZip, $zipData);
-
-            $zip = new ZipArchive();
-            if ($zip->open($tmpZip) === true) {
-                // Extract to temp dir first
-                $tmpDir = sys_get_temp_dir() . '/taskflow_extract_' . time();
-                $zip->extractTo($tmpDir);
-                $zip->close();
-
-                // Find extracted folder (usually "taskflow-main")
-                $folders = glob($tmpDir . '/*', GLOB_ONLYDIR);
-                $srcDir = $folders[0] ?? $tmpDir;
-
-                // Copy files to install dir (skip data/*.json and install.php)
-                copyDir($srcDir, $installDir);
-
-                // Clean up
-                @unlink($tmpZip);
-                deleteDir($tmpDir);
-
-                $filesExist = true;
+            $tree = json_decode($treeJson, true);
+            if (!isset($tree['tree'])) {
+                $error = 'Invalid response from GitHub API.';
             } else {
-                $error = 'Could not extract ZIP file.';
-                @unlink($tmpZip);
+                // Filter files (skip data/*.json, install.php, .git*)
+                $files = [];
+                foreach ($tree['tree'] as $item) {
+                    if ($item['type'] !== 'blob') continue;
+                    $path = $item['path'];
+                    // Skip files we don't want
+                    if ($path === 'install.php') continue;
+                    if (preg_match('#^data/(users|projects)\.json$#', $path)) continue;
+                    if (strpos($path, '.git') === 0 && $path !== '.gitignore') continue;
+                    $files[] = $path;
+                }
+
+                // Download each file
+                $total = count($files);
+                $ok = 0;
+                $failed = [];
+
+                foreach ($files as $file) {
+                    if (downloadFile($repoOwner, $repoName, $branch, $file, $installDir)) {
+                        $ok++;
+                    } else {
+                        $failed[] = $file;
+                    }
+                }
+
+                $downloaded = $ok;
+
+                if (empty($failed)) {
+                    // Create data dir if needed
+                    if (!is_dir($dataDir)) @mkdir($dataDir, 0755, true);
+                    $filesExist = true;
+                } else {
+                    $error = "Downloaded $ok/$total files. Failed: " . implode(', ', array_slice($failed, 0, 5));
+                    if (count($failed) > 5) $error .= ' ...and ' . (count($failed) - 5) . ' more';
+                }
             }
         }
     }
@@ -121,45 +152,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     }
-}
-
-function copyDir($src, $dst) {
-    $dir = opendir($src);
-    if (!is_dir($dst)) @mkdir($dst, 0755, true);
-    while (($file = readdir($dir)) !== false) {
-        if ($file === '.' || $file === '..') continue;
-        $srcPath = $src . '/' . $file;
-        $dstPath = $dst . '/' . $file;
-        if ($file === 'install.php') continue; // Don't overwrite ourselves
-        if (is_dir($srcPath)) {
-            // Skip data content files but create the dir
-            if ($file === 'data') {
-                if (!is_dir($dstPath)) @mkdir($dstPath, 0755, true);
-                // Only copy .htaccess and .gitkeep
-                foreach (['/.htaccess', '/.gitkeep'] as $keep) {
-                    if (file_exists($srcPath . $keep)) {
-                        copy($srcPath . $keep, $dstPath . $keep);
-                    }
-                }
-                continue;
-            }
-            copyDir($srcPath, $dstPath);
-        } else {
-            copy($srcPath, $dstPath);
-        }
-    }
-    closedir($dir);
-}
-
-function deleteDir($dir) {
-    if (!is_dir($dir)) return;
-    $items = scandir($dir);
-    foreach ($items as $item) {
-        if ($item === '.' || $item === '..') continue;
-        $path = $dir . '/' . $item;
-        is_dir($path) ? deleteDir($path) : @unlink($path);
-    }
-    @rmdir($dir);
 }
 ?>
 <!doctype html>
@@ -320,6 +312,10 @@ function deleteDir($dir) {
     <div class="title">Create Admin Account</div>
     <div class="subtitle">Set up your administrator login</div>
 
+    <?php if ($downloaded > 0): ?>
+      <div class="info"><?= $downloaded ?> files downloaded successfully.</div>
+    <?php endif; ?>
+
     <?php if ($error): ?>
       <div class="error"><?= htmlspecialchars($error) ?></div>
     <?php endif; ?>
@@ -360,7 +356,7 @@ function deleteDir($dir) {
 
     <div class="info">
       This will download all files from<br>
-      <strong><?= htmlspecialchars($repoUrl) ?></strong>
+      <strong>github.com/<?= $repoOwner ?>/<?= $repoName ?></strong>
     </div>
 
     <form method="post">
