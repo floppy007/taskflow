@@ -82,6 +82,8 @@
   "project_detail.stat_open": "Offen",
   "project_detail.stat_done": "Erledigt",
   "project_detail.stat_progress": "Fortschritt",
+  "project_detail.list_view": "Liste",
+  "project_detail.kanban_view": "Kanban",
 
   "todos.new_title": "Neue Aufgabe",
   "todos.task_label": "Aufgabe",
@@ -115,6 +117,10 @@
   "todos.delete_confirm": "Aufgabe wirklich l\u00f6schen?",
   "todos.created_by": "Erstellt von",
   "todos.closed_by": "Erledigt von",
+  "todos.due_date": "F\u00e4lligkeitsdatum",
+  "todos.due_overdue": "\u00dcberf\u00e4llig",
+  "todos.due_today": "Heute",
+  "todos.prompt_due_date": "F\u00e4lligkeitsdatum (JJJJ-MM-TT):",
 
   "settings.title": "Einstellungen",
   "settings.subtitle": "Design & Daten",
@@ -131,6 +137,9 @@
   "settings.backup_desc": "Exportiere oder importiere deine Daten als JSON-Datei",
   "settings.export_btn": "Daten exportieren",
   "settings.import_btn": "Daten importieren",
+  "settings.darkmode_title": "Dunkelmodus",
+  "settings.darkmode_desc": "Dunkle Hintergr\u00fcnde f\u00fcr alle Farbthemen",
+  "settings.darkmode_toggle": "Dunkelmodus aktivieren",
   "settings.danger_title": "Reset",
   "settings.danger_desc": "Alle Daten unwiderruflich l\u00f6schen",
   "settings.danger_btn": "Alle Daten zur\u00fccksetzen",
@@ -175,5 +184,26 @@
   "modal.project_desc": "Beschreibung",
   "modal.project_desc_placeholder": "Kurze Beschreibung des Projekts",
   "modal.create": "Projekt erstellen",
-  "modal.cancel": "Abbrechen"
+  "modal.cancel": "Abbrechen",
+
+  "kanban.col_todo": "Zu erledigen",
+  "kanban.col_inprogress": "In Bearbeitung",
+  "kanban.col_done": "Erledigt",
+
+  "search.no_results": "Keine Ergebnisse gefunden",
+  "search.type_project": "Projekt",
+  "search.type_task": "Aufgabe",
+
+  "activity.title": "Letzte Aktivit\u00e4ten",
+  "activity.empty": "Noch keine Aktivit\u00e4ten",
+  "activity.user_login": "hat sich angemeldet",
+  "activity.project_created": "hat ein Projekt erstellt",
+  "activity.project_deleted": "hat ein Projekt gel\u00f6scht",
+  "activity.todo_created": "hat eine Aufgabe erstellt",
+  "activity.todo_completed": "hat eine Aufgabe erledigt",
+  "activity.todo_deleted": "hat eine Aufgabe gel\u00f6scht",
+  "activity.just_now": "Gerade eben",
+  "activity.minutes_ago": "Min. her",
+  "activity.hours_ago": "Std. her",
+  "activity.days_ago": "Tage her"
 }

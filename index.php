@@ -85,6 +85,29 @@ if (!file_exists(__DIR__ . '/data/users.json') && file_exists(__DIR__ . '/instal
     --gradient-light:linear-gradient(135deg,#818cf8 0%,#334155 100%);
   }
 
+  /* Dark Mode */
+  body[data-dark="true"] {
+    --bg:#0f172a; --bg-secondary:#1e293b; --card:#1e293b;
+    --text:#f1f5f9; --text-muted:#94a3b8; --text-light:#64748b;
+    --border:#334155; --border-light:#1e293b;
+    --shadow-sm:0 1px 2px 0 rgba(0,0,0,.3);
+    --shadow:0 4px 6px -1px rgba(0,0,0,.3),0 2px 4px -2px rgba(0,0,0,.3);
+    --shadow-lg:0 10px 15px -3px rgba(0,0,0,.3),0 4px 6px -4px rgba(0,0,0,.3);
+  }
+  body[data-dark="true"] .badge-priority.low { background:#052e16; color:#86efac; border-color:#166534; }
+  body[data-dark="true"] .badge-priority.medium { background:#451a03; color:#fcd34d; border-color:#92400e; }
+  body[data-dark="true"] .badge-priority.high { background:#450a0a; color:#fca5a5; border-color:#991b1b; }
+  body[data-dark="true"] .badge-due.overdue { background:#450a0a; color:#fca5a5; border-color:#991b1b; }
+  body[data-dark="true"] .badge-due.today { background:#431407; color:#fdba74; border-color:#9a3412; }
+  body[data-dark="true"] .badge-due.upcoming { background:#451a03; color:#fcd34d; border-color:#92400e; }
+  body[data-dark="true"] .badge-due.later { background:#052e16; color:#86efac; border-color:#166534; }
+  body[data-dark="true"] .search-input,
+  body[data-dark="true"] .form-input,
+  body[data-dark="true"] select.form-input { background:var(--bg-secondary); color:var(--text); border-color:var(--border); }
+  body[data-dark="true"] .login-container { background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%); }
+  body[data-dark="true"] .login-box { background:rgba(30,41,59,.9); border-color:rgba(51,65,85,.5); }
+  body[data-dark="true"] .modal-content { background:var(--card); }
+
   * {box-sizing:border-box; margin:0; padding:0}
 
   body {
@@ -1297,6 +1320,45 @@ if (!file_exists(__DIR__ . '/data/users.json') && file_exists(__DIR__ . '/instal
     border-color:#fca5a5;
   }
 
+  /* Due Date Badges */
+  .badge-due { border:1px solid; font-size:12px; font-weight:600; padding:4px 10px; border-radius:8px; display:inline-flex; align-items:center; gap:4px; }
+  .badge-due.overdue { background:#fee2e2; color:#991b1b; border-color:#fca5a5; }
+  .badge-due.today { background:#fff7ed; color:#9a3412; border-color:#fdba74; }
+  .badge-due.upcoming { background:#fef3c7; color:#92400e; border-color:#fde047; }
+  .badge-due.later { background:#f0fdf4; color:#166534; border-color:#bbf7d0; }
+
+  /* Kanban Board */
+  .kanban-board { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; min-height:400px; }
+  .kanban-column { background:var(--bg-secondary); border-radius:var(--radius-lg); padding:16px; min-height:200px; transition:background .2s, border .2s; border:2px solid transparent; }
+  .kanban-column.drag-over { background:rgba(99,102,241,.08); border:2px dashed var(--primary); }
+  .kanban-column-header { font-size:14px; font-weight:700; color:var(--text); margin-bottom:16px; padding-bottom:12px; border-bottom:2px solid var(--border); display:flex; justify-content:space-between; align-items:center; }
+  .kanban-column-count { background:var(--card); padding:2px 8px; border-radius:8px; font-size:12px; color:var(--text-muted); }
+  .kanban-card { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:14px; margin-bottom:10px; cursor:grab; transition:all .2s; }
+  .kanban-card:active { cursor:grabbing; }
+  .kanban-card:hover { border-color:var(--primary); box-shadow:var(--shadow); }
+  .kanban-card.dragging { opacity:.5; }
+  .kanban-card-title { font-size:14px; font-weight:500; color:var(--text); margin-bottom:8px; }
+  .kanban-card-badges { display:flex; gap:6px; flex-wrap:wrap; }
+  @media (max-width:768px) { .kanban-board { grid-template-columns:1fr; } }
+
+  /* Search Results */
+  .search-results { position:absolute; top:100%; left:0; right:0; margin-top:4px; background:var(--card); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow-lg); max-height:400px; overflow-y:auto; z-index:100; display:none; }
+  .search-results.active { display:block; }
+  .search-result-item { padding:12px 16px; cursor:pointer; border-bottom:1px solid var(--border-light); transition:background .15s; }
+  .search-result-item:hover { background:var(--bg-secondary); }
+  .search-result-item:last-child { border-bottom:none; }
+  .search-result-type { font-size:11px; font-weight:600; text-transform:uppercase; color:var(--text-light); margin-bottom:2px; }
+  .search-result-title { font-size:14px; font-weight:500; color:var(--text); }
+  .search-result-context { font-size:12px; color:var(--text-muted); margin-top:2px; }
+  .search-no-results { padding:24px 16px; text-align:center; color:var(--text-muted); font-size:14px; }
+
+  /* Activity Feed */
+  .activity-item { display:flex; gap:12px; padding:12px 0; border-bottom:1px solid var(--border-light); align-items:start; }
+  .activity-item:last-child { border-bottom:none; }
+  .activity-icon { width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0; background:var(--bg-secondary); }
+  .activity-text { font-size:14px; color:var(--text); line-height:1.5; }
+  .activity-time { font-size:12px; color:var(--text-muted); margin-top:2px; }
+
   .todo-note {
     font-size:14px;
     color:var(--text-muted);
@@ -1657,7 +1719,8 @@ if (!file_exists(__DIR__ . '/data/users.json') && file_exists(__DIR__ . '/instal
     <div class="top-bar">
       <div class="search-bar">
         <span class="search-icon">🔍</span>
-        <input type="text" class="search-input" data-i18n-placeholder="topbar.search_placeholder" placeholder="Projekte oder Aufgaben suchen...">
+        <input type="text" class="search-input" id="globalSearchInput" oninput="onSearchInput()" onfocus="onSearchInput()" data-i18n-placeholder="topbar.search_placeholder" placeholder="Projekte oder Aufgaben suchen...">
+        <div class="search-results" id="searchResults"></div>
       </div>
 
       <div class="top-actions">
@@ -1665,6 +1728,7 @@ if (!file_exists(__DIR__ . '/data/users.json') && file_exists(__DIR__ . '/instal
           <button class="lang-btn active" onclick="changeLanguage('de')" id="langBtnDe"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 5 3'%3E%3Crect width='5' height='1' fill='%23000'/%3E%3Crect y='1' width='5' height='1' fill='%23D00'/%3E%3Crect y='2' width='5' height='1' fill='%23FFCE00'/%3E%3C/svg%3E" alt="DE" class="lang-flag"></button>
           <button class="lang-btn" onclick="changeLanguage('en')" id="langBtnEn"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 7410 3900'%3E%3Crect width='7410' height='3900' fill='%23b22234'/%3E%3Cpath d='M0,450H7410m0,600H0m0,600H7410m0,600H0m0,600H7410m0,600H0' stroke='%23fff' stroke-width='300'/%3E%3Crect width='2964' height='2100' fill='%233c3b6e'/%3E%3Cg fill='%23fff'%3E%3Cg id='s18'%3E%3Cg id='s9'%3E%3Cg id='s5'%3E%3Cg id='s4'%3E%3Cpath id='s' d='M247,90 317.534,307.082 132.873,172.918h228.254L176.466,307.082z'/%3E%3Cuse href='%23s' y='420'/%3E%3Cuse href='%23s' y='840'/%3E%3Cuse href='%23s' y='1260'/%3E%3C/g%3E%3Cuse href='%23s' y='1680'/%3E%3C/g%3E%3Cuse href='%23s4' x='494' y='210'/%3E%3C/g%3E%3Cuse href='%23s9' x='494'/%3E%3C/g%3E%3Cuse href='%23s18' x='988'/%3E%3Cuse href='%23s9' x='1976'/%3E%3Cuse href='%23s5' x='2470'/%3E%3C/g%3E%3C/svg%3E" alt="EN" class="lang-flag"></button>
         </div>
+        <button class="btn btn-secondary btn-sm" id="darkModeToggle" onclick="toggleDarkMode()" title="Dark Mode" style="font-size:16px;padding:6px 10px;line-height:1">🌙</button>
         <button class="btn btn-secondary btn-sm" onclick="openFeedback()" title="Bug Report / Feature Request" style="font-size:16px;padding:6px 10px;line-height:1">🐛</button>
         <button class="btn btn-primary btn-sm" onclick="openNewProjectModal()" data-i18n="topbar.new_project">+ Neues Projekt</button>
       </div>
@@ -1721,6 +1785,13 @@ if (!file_exists(__DIR__ . '/data/users.json') && file_exists(__DIR__ . '/instal
             <h3 class="card-title" data-i18n="dashboard.current_projects">Aktuelle Projekte</h3>
           </div>
           <div class="projects-grid" id="dashboardProjects"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title" data-i18n="activity.title">Letzte Aktivitäten</h3>
+          </div>
+          <div id="activityFeed"></div>
         </div>
       </div>
 
@@ -1783,7 +1854,11 @@ if (!file_exists(__DIR__ . '/data/users.json') && file_exists(__DIR__ . '/instal
               <h1 class="page-title" id="projectDetailTitle">Projekt</h1>
               <p class="page-subtitle" id="projectDetailDesc">Beschreibung</p>
             </div>
-            <div style="display:flex;gap:12px">
+            <div style="display:flex;gap:12px;align-items:center">
+              <div style="display:flex;gap:4px;background:var(--bg-secondary);padding:4px;border-radius:10px">
+                <button class="btn btn-sm" id="listViewBtn" onclick="switchProjectView('list')" style="background:var(--card);box-shadow:var(--shadow-sm)">📋 <span data-i18n="project_detail.list_view">Liste</span></button>
+                <button class="btn btn-ghost btn-sm" id="kanbanViewBtn" onclick="switchProjectView('kanban')">📊 <span data-i18n="project_detail.kanban_view">Kanban</span></button>
+              </div>
               <button class="btn btn-ghost btn-sm" onclick="editProject()"><span>✏️</span> <span data-i18n="project_detail.edit">Bearbeiten</span></button>
               <button class="btn btn-danger btn-sm" onclick="deleteCurrentProject()"><span>🗑️</span> <span data-i18n="project_detail.delete">Löschen</span></button>
             </div>
@@ -1835,7 +1910,7 @@ if (!file_exists(__DIR__ . '/data/users.json') && file_exists(__DIR__ . '/instal
               <input type="text" class="form-input" id="newTodoText" data-i18n-placeholder="todos.task_placeholder" placeholder="z.B. API Endpoints implementieren">
             </div>
 
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
               <div>
                 <label class="form-label" data-i18n="todos.category">Kategorie</label>
                 <select class="form-input" id="newTodoCategory">
@@ -1854,6 +1929,10 @@ if (!file_exists(__DIR__ . '/data/users.json') && file_exists(__DIR__ . '/instal
                   <option value="medium" selected data-i18n="todos.priority_medium">Normal</option>
                   <option value="high" data-i18n="todos.priority_high">Hoch</option>
                 </select>
+              </div>
+              <div>
+                <label class="form-label" data-i18n="todos.due_date">Fälligkeitsdatum</label>
+                <input type="date" class="form-input" id="newTodoDueDate">
               </div>
             </div>
 
@@ -1894,6 +1973,8 @@ if (!file_exists(__DIR__ . '/data/users.json') && file_exists(__DIR__ . '/instal
 
           <div id="todoListContainer"></div>
         </div>
+
+        <div id="kanbanContainer" style="display:none"></div>
       </div>
 
       <!-- Settings View -->
@@ -1951,6 +2032,15 @@ if (!file_exists(__DIR__ . '/data/users.json') && file_exists(__DIR__ . '/instal
               <div class="theme-label">Midnight</div>
             </div>
           </div>
+        </div>
+
+        <div class="card">
+          <h3 class="card-title" style="margin-bottom:12px" data-i18n="settings.darkmode_title">Dunkelmodus</h3>
+          <p style="color:var(--text-muted);margin-bottom:12px" data-i18n="settings.darkmode_desc">Dunkle Hintergründe für alle Farbthemen</p>
+          <label style="display:flex;align-items:center;gap:12px;cursor:pointer">
+            <input type="checkbox" id="darkModeCheckbox" onchange="toggleDarkMode()">
+            <span data-i18n="settings.darkmode_toggle">Dunkelmodus aktivieren</span>
+          </label>
         </div>
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">

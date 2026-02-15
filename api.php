@@ -120,6 +120,7 @@ if (!is_dir($dataDir)) {
 // File paths
 $usersFile = $dataDir . '/users.json';
 $projectsFile = $dataDir . '/projects.json';
+$activityFile = $dataDir . '/activity.json';
 
 // Check if installation is needed
 if (!file_exists($usersFile)) {
@@ -150,6 +151,32 @@ function loadProjects() {
 function saveProjects($projects) {
     global $projectsFile;
     file_put_contents($projectsFile, json_encode($projects, JSON_PRETTY_PRINT));
+}
+
+// Activity Log
+function loadActivity() {
+    global $activityFile;
+    if (!file_exists($activityFile)) return [];
+    return json_decode(file_get_contents($activityFile), true) ?: [];
+}
+
+function saveActivity($activity) {
+    global $activityFile;
+    file_put_contents($activityFile, json_encode($activity, JSON_PRETTY_PRINT), LOCK_EX);
+}
+
+function logActivity($action, $details = []) {
+    $activity = loadActivity();
+    $entry = array_merge([
+        'id' => count($activity) > 0 ? max(array_column($activity, 'id')) + 1 : 1,
+        'timestamp' => date('c'),
+        'userId' => $_SESSION['user']['id'] ?? 0,
+        'userName' => $_SESSION['user']['name'] ?? '',
+        'action' => $action
+    ], $details);
+    array_unshift($activity, $entry);
+    $activity = array_slice($activity, 0, 200);
+    saveActivity($activity);
 }
 
 function response($success, $data = null, $message = '') {
@@ -189,6 +216,7 @@ switch ($action) {
 
         if ($user) {
             $_SESSION['user'] = $user;
+            logActivity('user_login');
             response(true, $user, msg('login_success'));
         } else {
             response(false, null, msg('login_failed'));
@@ -385,6 +413,7 @@ switch ($action) {
 
         $projects[] = $newProject;
         saveProjects($projects);
+        logActivity('project_created', ['projectId' => $newId, 'projectName' => $name]);
 
         response(true, $newProject, msg('project_created'));
         break;
@@ -426,12 +455,18 @@ switch ($action) {
         $projectId = $input['id'] ?? 0;
         $projects = loadProjects();
 
+        $deletedName = '';
+        foreach ($projects as $p) {
+            if ($p['id'] == $projectId) { $deletedName = $p['name']; break; }
+        }
+
         $filtered = array_filter($projects, function($p) use ($projectId) {
             return $p['id'] != $projectId;
         });
 
         if (count($filtered) < count($projects)) {
             saveProjects(array_values($filtered));
+            logActivity('project_deleted', ['projectId' => $projectId, 'projectName' => $deletedName]);
             response(true, null, msg('project_deleted'));
         } else {
             response(false, null, msg('project_not_found'));
@@ -448,6 +483,7 @@ switch ($action) {
         $category = $input['category'] ?? 'Other';
         $priority = $input['priority'] ?? 'medium';
         $note = $input['note'] ?? '';
+        $dueDate = $input['dueDate'] ?? null;
 
         if (empty($text)) {
             response(false, null, msg('todo_text_required'));
@@ -466,6 +502,8 @@ switch ($action) {
                     'category' => $category,
                     'priority' => $priority,
                     'note' => $note,
+                    'dueDate' => $dueDate,
+                    'status' => 'todo',
                     'done' => false,
                     'archived' => false,
                     'createdAt' => date('c'),
@@ -480,6 +518,7 @@ switch ($action) {
 
         if ($found) {
             saveProjects($projects);
+            logActivity('todo_created', ['projectId' => $projectId, 'projectName' => $p['name'] ?? '', 'todoText' => $text]);
             response(true, null, msg('todo_added'));
         } else {
             response(false, null, msg('project_not_found'));
@@ -509,6 +548,7 @@ switch ($action) {
                             if ($updates['done']) {
                                 $t['closedBy'] = $_SESSION['user']['username'] ?? '';
                                 $t['closedAt'] = date('c');
+                                logActivity('todo_completed', ['projectId' => $projectId, 'todoText' => $t['text'] ?? '']);
                             } else {
                                 unset($t['closedBy'], $t['closedAt']);
                             }
@@ -538,9 +578,13 @@ switch ($action) {
 
         $projects = loadProjects();
         $found = false;
+        $deletedTodoText = '';
 
         foreach ($projects as &$p) {
             if ($p['id'] == $projectId) {
+                foreach ($p['todos'] as $td) {
+                    if ($td['id'] == $todoId) { $deletedTodoText = $td['text']; break; }
+                }
                 $originalCount = count($p['todos']);
                 $p['todos'] = array_values(array_filter($p['todos'], function($t) use ($todoId) {
                     return $t['id'] != $todoId;
@@ -555,6 +599,7 @@ switch ($action) {
 
         if ($found) {
             saveProjects($projects);
+            logActivity('todo_deleted', ['projectId' => $projectId, 'todoText' => $deletedTodoText]);
             response(true, null, msg('todo_deleted'));
         } else {
             response(false, null, msg('todo_not_found'));
@@ -694,6 +739,15 @@ switch ($action) {
         } else {
             response(false, ['output' => $outputStr], msg('update_failed'));
         }
+        break;
+
+    case 'getActivity':
+        if (!isset($_SESSION['user'])) {
+            response(false, null, msg('not_logged_in'));
+        }
+        $count = $input['count'] ?? 20;
+        $activity = loadActivity();
+        response(true, array_slice($activity, 0, (int)$count));
         break;
 
     default:
