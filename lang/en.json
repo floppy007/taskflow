@@ -250,5 +250,18 @@
   "activity.just_now": "Just now",
   "activity.minutes_ago": "min ago",
   "activity.hours_ago": "hours ago",
-  "activity.days_ago": "days ago"
+  "activity.days_ago": "days ago",
+
+  "attachments.title": "Attachments",
+  "attachments.upload": "Upload file",
+  "attachments.delete": "Delete attachment",
+  "attachments.delete_confirm": "Really delete this attachment?",
+  "attachments.drop_hint": "Drop file here or click to upload",
+  "attachments.too_large": "File is too large (max. 10 MB)",
+  "attachments.uploaded": "File uploaded",
+  "attachments.deleted": "Attachment deleted",
+  "attachments.none": "No attachments",
+  "attachments.count": "Attachments",
+  "attachments.upload_error": "Error uploading file",
+  "attachments.delete_error": "Error deleting attachment"
 }

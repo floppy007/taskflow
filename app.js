@@ -917,12 +917,14 @@ function renderProjectTodos() {
               <span class="todo-badge badge-category">${categoryIcons[todo.category] || '📌'} ${todo.category}</span>
               <span class="todo-badge badge-priority ${todo.priority}">${priorityLabels[todo.priority]}</span>
               ${todo.dueDate ? (() => { const di = getDueDateInfo(todo.dueDate); return `<span class="todo-badge badge-due ${di.class}">📅 ${di.label}</span>`; })() : ''}
+              ${(todo.attachments && todo.attachments.length > 0) ? `<span class="attachment-badge">📎 ${todo.attachments.length}</span>` : ''}
             </div>
             <div class="todo-meta" style="font-size:12px;color:var(--text-muted);margin-top:4px">
               ${todo.createdBy ? `<span>${escapeHtml(t('todos.created_by'))} @${escapeHtml(todo.createdBy)}</span>` : ''}
               ${todo.done && todo.closedBy ? `<span style="margin-left:8px">${escapeHtml(t('todos.closed_by'))} @${escapeHtml(todo.closedBy)}${todo.closedAt ? ' (' + new Date(todo.closedAt).toLocaleDateString(currentLang === 'de' ? 'de-DE' : 'en-US') + ')' : ''}</span>` : ''}
             </div>
             ${todo.note ? `<div class="todo-note">${escapeHtml(todo.note)}</div>` : ''}
+            ${renderInlineAttachments(todo)}
             <div class="todo-actions">
               <button class="todo-action-btn" onclick="editTodo(${todo.id})">✏️ ${escapeHtml(t('todos.edit_btn'))}</button>
               <button class="todo-action-btn" onclick="archiveTodo(${todo.id})">${todo.archived ? '📂 ' + escapeHtml(t('todos.restore_btn')) : '📦 ' + escapeHtml(t('todos.archive_btn'))}</button>
@@ -973,6 +975,10 @@ function editTodo(todoId) {
   document.getElementById('editTodoPriority').value = todo.priority || 'medium';
   document.getElementById('editTodoDueDate').value = todo.dueDate || '';
   document.getElementById('editTodoNote').value = todo.note || '';
+
+  // Render attachments in the modal
+  renderAttachments(todo.attachments || []);
+  initAttachmentDropZone();
 
   document.getElementById('editTodoModal').classList.add('active');
   document.getElementById('editTodoText').focus();
@@ -1373,6 +1379,7 @@ function renderKanbanBoard() {
         </div>
         ${col.items.map(td => `
           <div class="kanban-card" draggable="true" data-todo-id="${td.id}"
+               onclick="editTodo(${td.id})"
                ondragstart="event.dataTransfer.setData('text/plain','${td.id}');this.classList.add('dragging')"
                ondragend="this.classList.remove('dragging')">
             <div class="kanban-card-title">${escapeHtml(td.text)}</div>
@@ -1380,7 +1387,9 @@ function renderKanbanBoard() {
               <span class="todo-badge badge-category">${categoryIcons[td.category]||'📌'} ${td.category}</span>
               <span class="todo-badge badge-priority ${td.priority}">${priorityLabels[td.priority]}</span>
               ${td.dueDate ? (() => { const di = getDueDateInfo(td.dueDate); return `<span class="todo-badge badge-due ${di.class}">📅 ${di.label}</span>`; })() : ''}
+              ${(td.attachments && td.attachments.length > 0) ? `<span class="attachment-badge">📎 ${td.attachments.length}</span>` : ''}
             </div>
+            ${renderInlineAttachments(td)}
           </div>
         `).join('')}
       </div>
@@ -1973,6 +1982,256 @@ async function permanentDeleteProject(id) {
     loadDeletedProjects();
   } else {
     showToast(t('trash.title'), result.message, 'error');
+  }
+}
+
+// Attachments
+function renderInlineAttachments(todo) {
+  const atts = todo.attachments;
+  if (!atts || atts.length === 0) return '';
+
+  const items = atts.map((att, idx) => {
+    const url = `api.php?action=downloadAttachment&projectId=${currentProjectId}&todoId=${todo.id}&attachmentId=${encodeURIComponent(att.id)}`;
+    const isImage = isImageFile(att.filename);
+
+    if (isImage) {
+      return `<img src="${url}" class="inline-att-thumb" onclick="event.stopPropagation();previewAttachmentDirect(${currentProjectId},${todo.id},${idx})" title="${escapeHtml(att.filename)}" alt="">`;
+    }
+    return `<span class="inline-att-file" onclick="event.stopPropagation();previewAttachmentDirect(${currentProjectId},${todo.id},${idx})" title="${escapeHtml(att.filename)}">${getFileIcon(att.filename)} ${escapeHtml(att.filename.length > 18 ? att.filename.substring(0, 15) + '...' : att.filename)}</span>`;
+  }).join('');
+
+  return `<div class="inline-attachments"><div class="inline-att-header">📎 ${atts.length} ${escapeHtml(t('attachments.count'))}</div><div class="inline-att-items">${items}</div></div>`;
+}
+
+function formatFileSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+function getFileIcon(filename) {
+  const ext = (filename || '').split('.').pop().toLowerCase();
+  const icons = {
+    pdf: '📄', doc: '📝', docx: '📝', xls: '📊', xlsx: '📊',
+    ppt: '📊', pptx: '📊', txt: '📃', csv: '📃',
+    png: '🖼️', jpg: '🖼️', jpeg: '🖼️', gif: '🖼️', svg: '🖼️', webp: '🖼️',
+    zip: '📦', rar: '📦', '7z': '📦', tar: '📦', gz: '📦',
+    mp4: '🎬', avi: '🎬', mov: '🎬', mp3: '🎵', wav: '🎵',
+  };
+  return icons[ext] || '📎';
+}
+
+function isPreviewable(filename) {
+  return /\.(png|jpe?g|gif|svg|webp|bmp|pdf|txt|csv|mp4|webm|ogg|mp3|wav)$/i.test(filename);
+}
+
+function isImageFile(filename) {
+  return /\.(png|jpe?g|gif|svg|webp|bmp)$/i.test(filename);
+}
+
+function renderAttachments(attachments) {
+  const container = document.getElementById('attachmentList');
+  if (!container) return;
+
+  if (!attachments || attachments.length === 0) {
+    container.innerHTML = `<div style="text-align:center;padding:12px;font-size:13px;color:var(--text-muted)">${escapeHtml(t('attachments.none'))}</div>`;
+    return;
+  }
+
+  const todoId = parseInt(document.getElementById('editTodoId').value);
+
+  container.innerHTML = attachments.map((att, idx) => {
+    const url = `api.php?action=downloadAttachment&projectId=${currentProjectId}&todoId=${todoId}&attachmentId=${encodeURIComponent(att.id)}`;
+    const isImage = isImageFile(att.filename);
+    const canPreview = isPreviewable(att.filename);
+
+    return `
+    <div class="attachment-item">
+      ${isImage
+        ? `<img src="${url}" class="attachment-thumb" onclick="previewAttachmentByIndex(${idx})" alt="">`
+        : `<div class="attachment-icon">${getFileIcon(att.filename)}</div>`
+      }
+      <div class="attachment-info">
+        <div class="attachment-name" title="${escapeHtml(att.filename)}">${escapeHtml(att.filename)}</div>
+        <div class="attachment-meta">${formatFileSize(att.size)} &middot; ${att.uploadedBy ? '@' + escapeHtml(att.uploadedBy) : ''} &middot; ${new Date(att.uploadedAt).toLocaleDateString(currentLang === 'de' ? 'de-DE' : 'en-US')}</div>
+      </div>
+      <div class="attachment-actions">
+        ${canPreview ? `<button class="attachment-action-btn" onclick="previewAttachmentByIndex(${idx})" title="Preview">👁️</button>` : ''}
+        <a class="attachment-action-btn" href="${url}" download="${escapeHtml(att.filename)}" title="Download">⬇️</a>
+        <button class="attachment-action-btn danger" onclick="deleteAttachment('${att.id}')" title="${escapeHtml(t('attachments.delete'))}">🗑️</button>
+      </div>
+    </div>
+  `;
+  }).join('');
+}
+
+function initAttachmentDropZone() {
+  const zone = document.getElementById('attachmentDropZone');
+  if (!zone || zone._attachmentInit) return;
+  zone._attachmentInit = true;
+
+  zone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    zone.classList.add('drag-over');
+  });
+  zone.addEventListener('dragleave', () => {
+    zone.classList.remove('drag-over');
+  });
+  zone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    zone.classList.remove('drag-over');
+    if (e.dataTransfer.files.length > 0) {
+      handleAttachmentUpload(e.dataTransfer.files);
+    }
+  });
+}
+
+async function handleAttachmentUpload(files) {
+  if (!files || files.length === 0) return;
+
+  const file = files[0];
+  const maxSize = 10 * 1024 * 1024; // 10 MB
+
+  if (file.size > maxSize) {
+    showToast(t('attachments.title'), t('attachments.too_large'), 'warning');
+    document.getElementById('attachmentFileInput').value = '';
+    return;
+  }
+
+  const todoId = parseInt(document.getElementById('editTodoId').value);
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('projectId', currentProjectId);
+  formData.append('todoId', todoId);
+
+  try {
+    const response = await fetch(`api.php?action=uploadAttachment&lang=${currentLang}`, {
+      method: 'POST',
+      body: formData
+    });
+    const result = await response.json();
+
+    if (result.success) {
+      showToast(t('attachments.title'), t('attachments.uploaded'), 'success');
+      await loadProjectsFromServer();
+      // Re-render attachments
+      const project = projects.find(p => p.id === currentProjectId);
+      if (project) {
+        const todo = project.todos.find(t => t.id === todoId);
+        if (todo) renderAttachments(todo.attachments || []);
+      }
+      renderProjectTodos();
+      if (currentProjectView === 'kanban') renderKanbanBoard();
+    } else {
+      showToast(t('attachments.title'), result.message || t('attachments.upload_error'), 'error');
+    }
+  } catch (error) {
+    showToast(t('attachments.title'), t('attachments.upload_error'), 'error');
+  }
+
+  document.getElementById('attachmentFileInput').value = '';
+}
+
+async function deleteAttachment(attachmentId) {
+  if (!await showConfirm(t('attachments.delete_confirm'), { icon: '🗑️', title: t('attachments.delete') })) return;
+
+  const todoId = parseInt(document.getElementById('editTodoId').value);
+
+  const result = await apiCall('deleteAttachment', {
+    projectId: currentProjectId,
+    todoId,
+    attachmentId
+  });
+
+  if (result.success) {
+    showToast(t('attachments.title'), t('attachments.deleted'), 'success');
+    await loadProjectsFromServer();
+    const project = projects.find(p => p.id === currentProjectId);
+    if (project) {
+      const todo = project.todos.find(t => t.id === todoId);
+      if (todo) renderAttachments(todo.attachments || []);
+    }
+    renderProjectTodos();
+    if (currentProjectView === 'kanban') renderKanbanBoard();
+  } else {
+    showToast(t('attachments.title'), result.message || t('attachments.delete_error'), 'error');
+  }
+}
+
+// Attachment Preview Lightbox
+function previewAttachmentDirect(projectId, todoId, idx) {
+  const project = projects.find(p => p.id === projectId);
+  if (!project) return;
+  const todo = project.todos.find(t => t.id === todoId);
+  if (!todo || !todo.attachments || !todo.attachments[idx]) return;
+  showAttachmentPreview(todo.attachments[idx], projectId, todoId);
+}
+
+function previewAttachmentByIndex(idx) {
+  const todoId = parseInt(document.getElementById('editTodoId').value);
+  const project = projects.find(p => p.id === currentProjectId);
+  if (!project) return;
+  const todo = project.todos.find(t => t.id === todoId);
+  if (!todo || !todo.attachments || !todo.attachments[idx]) return;
+  showAttachmentPreview(todo.attachments[idx], currentProjectId, todoId);
+}
+
+function showAttachmentPreview(att, projectId, todoId) {
+  const url = `api.php?action=downloadAttachment&projectId=${projectId}&todoId=${todoId}&attachmentId=${encodeURIComponent(att.id)}`;
+  const filename = att.filename;
+  const ext = (filename || '').split('.').pop().toLowerCase();
+
+  let overlay = document.getElementById('attachmentPreviewOverlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'attachmentPreviewOverlay';
+    overlay.className = 'attachment-preview-overlay';
+    overlay.innerHTML = `
+      <div class="attachment-preview-header">
+        <span class="attachment-preview-title"></span>
+        <div style="display:flex;gap:8px;align-items:center">
+          <a class="attachment-preview-download" download title="Download">⬇️</a>
+          <button class="attachment-preview-close" onclick="closeAttachmentPreview()">&times;</button>
+        </div>
+      </div>
+      <div class="attachment-preview-body"></div>
+    `;
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) closeAttachmentPreview();
+    });
+  }
+
+  overlay.querySelector('.attachment-preview-title').textContent = filename;
+  const dlBtn = overlay.querySelector('.attachment-preview-download');
+  dlBtn.href = url;
+  dlBtn.download = filename;
+
+  const body = overlay.querySelector('.attachment-preview-body');
+
+  // Render preview based on file type
+  if (isImageFile(filename)) {
+    body.innerHTML = `<img class="attachment-preview-img" src="${url}" alt="${escapeHtml(filename)}">`;
+  } else if (ext === 'pdf') {
+    body.innerHTML = `<iframe class="attachment-preview-frame" src="${url}"></iframe>`;
+  } else if (['mp4','webm','ogg'].includes(ext)) {
+    body.innerHTML = `<video class="attachment-preview-video" controls autoplay><source src="${url}"></video>`;
+  } else if (['mp3','wav','ogg'].includes(ext)) {
+    body.innerHTML = `<div style="padding:40px;text-align:center"><div style="font-size:64px;margin-bottom:20px">🎵</div><div style="color:#fff;margin-bottom:20px;font-size:16px">${escapeHtml(filename)}</div><audio controls autoplay style="width:100%;max-width:400px"><source src="${url}"></audio></div>`;
+  } else if (['txt','csv','log','md'].includes(ext)) {
+    body.innerHTML = `<iframe class="attachment-preview-frame" src="${url}"></iframe>`;
+  } else {
+    body.innerHTML = `<div style="padding:40px;text-align:center"><div style="font-size:64px;margin-bottom:20px">${getFileIcon(filename)}</div><div style="color:#fff;font-size:16px">${escapeHtml(filename)}</div><div style="color:#aaa;font-size:13px;margin-top:8px">${formatFileSize(att.size)}</div><a href="${url}" download="${escapeHtml(filename)}" class="btn btn-primary" style="margin-top:20px;width:auto">⬇️ Download</a></div>`;
+  }
+
+  overlay.classList.add('active');
+}
+
+function closeAttachmentPreview() {
+  const overlay = document.getElementById('attachmentPreviewOverlay');
+  if (overlay) {
+    overlay.classList.remove('active');
+    overlay.querySelector('.attachment-preview-body').innerHTML = '';
   }
 }
 

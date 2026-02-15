@@ -77,6 +77,11 @@ $messages = [
         'member_not_found' => 'Mitglied nicht gefunden',
         'cannot_remove_owner' => 'Eigentümer kann nicht entfernt werden',
         'project_restored' => 'Projekt wiederhergestellt',
+        'attachment_uploaded' => 'Datei hochgeladen',
+        'attachment_deleted' => 'Anhang gelöscht',
+        'attachment_not_found' => 'Anhang nicht gefunden',
+        'attachment_too_large' => 'Datei ist zu groß (max. 10 MB)',
+        'attachment_upload_failed' => 'Upload fehlgeschlagen',
     ],
     'en' => [
         'login_required' => 'Username and password required',
@@ -123,6 +128,11 @@ $messages = [
         'member_not_found' => 'Member not found',
         'cannot_remove_owner' => 'Owner cannot be removed',
         'project_restored' => 'Project restored',
+        'attachment_uploaded' => 'File uploaded',
+        'attachment_deleted' => 'Attachment deleted',
+        'attachment_not_found' => 'Attachment not found',
+        'attachment_too_large' => 'File is too large (max. 10 MB)',
+        'attachment_upload_failed' => 'Upload failed',
     ],
 ];
 
@@ -312,6 +322,21 @@ function getDataMigrations() {
                 }
             }
             if ($changed) saveUsers($users);
+        },
+
+        // v5: Add attachments array to all todos
+        5 => function() {
+            $projects = loadProjects();
+            $changed = false;
+            foreach ($projects as &$p) {
+                foreach ($p['todos'] as &$t) {
+                    if (!isset($t['attachments'])) {
+                        $t['attachments'] = [];
+                        $changed = true;
+                    }
+                }
+            }
+            if ($changed) saveProjects($projects);
         },
     ];
 }
@@ -759,6 +784,7 @@ switch ($action) {
                     'status' => 'todo',
                     'done' => false,
                     'archived' => false,
+                    'attachments' => [],
                     'createdAt' => date('c'),
                     'createdBy' => $_SESSION['user']['username'] ?? ''
                 ];
@@ -836,7 +862,16 @@ switch ($action) {
         foreach ($projects as &$p) {
             if ($p['id'] == $projectId) {
                 foreach ($p['todos'] as $td) {
-                    if ($td['id'] == $todoId) { $deletedTodoText = $td['text']; break; }
+                    if ($td['id'] == $todoId) {
+                        $deletedTodoText = $td['text'];
+                        // Delete attachment files
+                        $attDir = $dataDir . '/attachments/' . $projectId . '/' . $todoId;
+                        if (is_dir($attDir)) {
+                            foreach (glob($attDir . '/*') as $f) { unlink($f); }
+                            rmdir($attDir);
+                        }
+                        break;
+                    }
                 }
                 $originalCount = count($p['todos']);
                 $p['todos'] = array_values(array_filter($p['todos'], function($t) use ($todoId) {
@@ -1469,6 +1504,168 @@ switch ($action) {
             response(false, null, msg('project_not_found'));
         }
         break;
+
+    case 'uploadAttachment':
+        if (!isset($_SESSION['user'])) {
+            response(false, null, msg('not_logged_in'));
+        }
+
+        $projectId = (int)($_POST['projectId'] ?? 0);
+        $todoId = (int)($_POST['todoId'] ?? 0);
+
+        if (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
+            response(false, null, msg('attachment_upload_failed'));
+        }
+
+        $file = $_FILES['file'];
+        $maxSize = 10 * 1024 * 1024; // 10 MB
+        if ($file['size'] > $maxSize) {
+            response(false, null, msg('attachment_too_large'));
+        }
+
+        $projects = loadProjects();
+        $found = false;
+
+        foreach ($projects as &$p) {
+            if ($p['id'] == $projectId) {
+                foreach ($p['todos'] as &$t) {
+                    if ($t['id'] == $todoId) {
+                        // Create attachment directory
+                        $attachDir = $dataDir . '/attachments/' . $projectId . '/' . $todoId;
+                        if (!is_dir($attachDir)) {
+                            mkdir($attachDir, 0755, true);
+                        }
+
+                        // Generate unique ID and sanitize filename
+                        $attachId = uniqid('att_');
+                        $originalName = basename($file['name']);
+                        $safeName = preg_replace('/[^a-zA-Z0-9._-]/', '_', $originalName);
+                        $storedName = $attachId . '_' . $safeName;
+
+                        if (!move_uploaded_file($file['tmp_name'], $attachDir . '/' . $storedName)) {
+                            response(false, null, msg('attachment_upload_failed'));
+                        }
+
+                        // Add metadata to todo
+                        if (!isset($t['attachments'])) $t['attachments'] = [];
+                        $t['attachments'][] = [
+                            'id' => $attachId,
+                            'filename' => $originalName,
+                            'storedName' => $storedName,
+                            'size' => $file['size'],
+                            'type' => $file['type'],
+                            'uploadedBy' => $_SESSION['user']['username'] ?? '',
+                            'uploadedAt' => date('c')
+                        ];
+
+                        $found = true;
+                        break 2;
+                    }
+                }
+            }
+        }
+
+        if ($found) {
+            saveProjects($projects);
+            response(true, null, msg('attachment_uploaded'));
+        } else {
+            response(false, null, msg('todo_not_found'));
+        }
+        break;
+
+    case 'deleteAttachment':
+        if (!isset($_SESSION['user'])) {
+            response(false, null, msg('not_logged_in'));
+        }
+
+        $projectId = $input['projectId'] ?? 0;
+        $todoId = $input['todoId'] ?? 0;
+        $attachmentId = $input['attachmentId'] ?? '';
+
+        $projects = loadProjects();
+        $found = false;
+
+        foreach ($projects as &$p) {
+            if ($p['id'] == $projectId) {
+                foreach ($p['todos'] as &$t) {
+                    if ($t['id'] == $todoId) {
+                        if (!isset($t['attachments'])) break;
+
+                        foreach ($t['attachments'] as $idx => $att) {
+                            if ($att['id'] === $attachmentId) {
+                                // Delete file from filesystem
+                                $filePath = $dataDir . '/attachments/' . $projectId . '/' . $todoId . '/' . $att['storedName'];
+                                if (file_exists($filePath)) {
+                                    unlink($filePath);
+                                }
+
+                                // Remove from metadata
+                                array_splice($t['attachments'], $idx, 1);
+                                $found = true;
+                                break 3;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if ($found) {
+            saveProjects($projects);
+            response(true, null, msg('attachment_deleted'));
+        } else {
+            response(false, null, msg('attachment_not_found'));
+        }
+        break;
+
+    case 'downloadAttachment':
+        if (!isset($_SESSION['user'])) {
+            response(false, null, msg('not_logged_in'));
+        }
+
+        $projectId = (int)($_GET['projectId'] ?? 0);
+        $todoId = (int)($_GET['todoId'] ?? 0);
+        $attachmentId = $_GET['attachmentId'] ?? '';
+
+        $projects = loadProjects();
+        $foundAtt = null;
+
+        foreach ($projects as $p) {
+            if ($p['id'] == $projectId) {
+                foreach ($p['todos'] as $t) {
+                    if ($t['id'] == $todoId && isset($t['attachments'])) {
+                        foreach ($t['attachments'] as $att) {
+                            if ($att['id'] === $attachmentId) {
+                                $foundAtt = $att;
+                                break 3;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (!$foundAtt) {
+            response(false, null, msg('attachment_not_found'));
+        }
+
+        $filePath = $dataDir . '/attachments/' . $projectId . '/' . $todoId . '/' . $foundAtt['storedName'];
+        if (!file_exists($filePath)) {
+            response(false, null, msg('attachment_not_found'));
+        }
+
+        // Clean any previous output
+        if (ob_get_level()) ob_end_clean();
+
+        // Send file with correct headers
+        $mimeType = $foundAtt['type'] ?: mime_content_type($filePath) ?: 'application/octet-stream';
+        header('Content-Type: ' . $mimeType);
+        header('Content-Disposition: inline; filename="' . rawurlencode($foundAtt['filename']) . '"');
+        header('Content-Length: ' . filesize($filePath));
+        header('Cache-Control: private, max-age=3600');
+        header('Accept-Ranges: bytes');
+        readfile($filePath);
+        exit;
 
     default:
         response(false, null, msg('invalid_action'));

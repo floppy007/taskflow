@@ -250,5 +250,18 @@
   "activity.just_now": "Gerade eben",
   "activity.minutes_ago": "Min. her",
   "activity.hours_ago": "Std. her",
-  "activity.days_ago": "Tage her"
+  "activity.days_ago": "Tage her",
+
+  "attachments.title": "Anhänge",
+  "attachments.upload": "Datei hochladen",
+  "attachments.delete": "Anhang löschen",
+  "attachments.delete_confirm": "Anhang wirklich löschen?",
+  "attachments.drop_hint": "Datei hierher ziehen oder klicken zum Hochladen",
+  "attachments.too_large": "Datei ist zu groß (max. 10 MB)",
+  "attachments.uploaded": "Datei hochgeladen",
+  "attachments.deleted": "Anhang gelöscht",
+  "attachments.none": "Keine Anhänge",
+  "attachments.count": "Anhänge",
+  "attachments.upload_error": "Fehler beim Hochladen",
+  "attachments.delete_error": "Fehler beim Löschen"
 }
