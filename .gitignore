@@ -1,0 +1,15 @@
+# Benutzerdaten (nicht überschreiben bei Updates)
+data/users.json
+data/projects.json
+
+# Generierte Dateien
+favicon.png
+favicon-32.png
+
+# IDE / Tools
+.claude/
+.vscode/
+*.swp
+*.bak
+Thumbs.db
+.DS_Store
