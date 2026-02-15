@@ -1,5 +1,5 @@
 <!--
-  TaskFlow v1.0
+  TaskFlow v1.1
   Copyright (c) 2026 Florian Hesse
   Fischer Str. 11, 16515 Oranienburg
   https://comnic-it.de
@@ -1393,6 +1393,138 @@
       grid-template-columns:1fr;
     }
   }
+
+  /* === Dynamic Animations === */
+
+  /* Staggered card entrance */
+  @keyframes cardIn {
+    from {opacity:0; transform:translateY(20px)}
+    to {opacity:1; transform:translateY(0)}
+  }
+
+  .card, .stat-card, .project-card, .todo-item {
+    animation:cardIn .4s cubic-bezier(.16,1,.3,1) both;
+  }
+
+  .card:nth-child(1) {animation-delay:.05s}
+  .card:nth-child(2) {animation-delay:.1s}
+  .card:nth-child(3) {animation-delay:.15s}
+  .card:nth-child(4) {animation-delay:.2s}
+  .card:nth-child(5) {animation-delay:.25s}
+
+  .stat-card:nth-child(1) {animation-delay:.05s}
+  .stat-card:nth-child(2) {animation-delay:.1s}
+  .stat-card:nth-child(3) {animation-delay:.15s}
+  .stat-card:nth-child(4) {animation-delay:.2s}
+
+  .project-card:nth-child(1) {animation-delay:.05s}
+  .project-card:nth-child(2) {animation-delay:.1s}
+  .project-card:nth-child(3) {animation-delay:.15s}
+  .project-card:nth-child(4) {animation-delay:.2s}
+  .project-card:nth-child(5) {animation-delay:.25s}
+  .project-card:nth-child(6) {animation-delay:.3s}
+
+  .todo-item:nth-child(1) {animation-delay:.03s}
+  .todo-item:nth-child(2) {animation-delay:.06s}
+  .todo-item:nth-child(3) {animation-delay:.09s}
+  .todo-item:nth-child(4) {animation-delay:.12s}
+  .todo-item:nth-child(5) {animation-delay:.15s}
+  .todo-item:nth-child(6) {animation-delay:.18s}
+  .todo-item:nth-child(7) {animation-delay:.21s}
+  .todo-item:nth-child(8) {animation-delay:.24s}
+  .todo-item:nth-child(9) {animation-delay:.27s}
+  .todo-item:nth-child(10) {animation-delay:.3s}
+
+  /* Card hover lift */
+  .card {
+    transition:transform .25s cubic-bezier(.4,0,.2,1), box-shadow .25s cubic-bezier(.4,0,.2,1);
+  }
+  .card:hover {
+    transform:translateY(-2px);
+    box-shadow:0 8px 24px rgba(0,0,0,.08);
+  }
+
+  /* Todo checkbox pop */
+  @keyframes checkPop {
+    0% {transform:scale(1)}
+    40% {transform:scale(1.3)}
+    100% {transform:scale(1)}
+  }
+  .todo-checkbox.checked {
+    animation:checkPop .3s cubic-bezier(.4,0,.2,1);
+  }
+
+  /* Page header slide in */
+  @keyframes headerIn {
+    from {opacity:0; transform:translateX(-20px)}
+    to {opacity:1; transform:translateX(0)}
+  }
+  .page-header {
+    animation:headerIn .5s cubic-bezier(.16,1,.3,1);
+  }
+
+  /* Stat value count-up shimmer */
+  @keyframes shimmer {
+    from {background-position:200% center}
+    to {background-position:-200% center}
+  }
+  .stat-value {
+    background:linear-gradient(90deg, var(--text) 40%, var(--primary) 50%, var(--text) 60%);
+    background-size:200% auto;
+    -webkit-background-clip:text;
+    -webkit-text-fill-color:transparent;
+    background-clip:text;
+    animation:shimmer 2s ease-in-out;
+  }
+
+  /* Progress bar fill animation */
+  @keyframes progressFill {
+    from {width:0}
+  }
+  .progress-fill {
+    animation:progressFill .8s cubic-bezier(.4,0,.2,1) .2s both;
+  }
+
+  /* Sidebar nav item hover slide */
+  .nav-item::after {
+    content:'';
+    position:absolute;
+    left:0;
+    top:0;
+    bottom:0;
+    width:3px;
+    background:var(--gradient);
+    border-radius:0 3px 3px 0;
+    transform:scaleY(0);
+    transition:transform .2s cubic-bezier(.4,0,.2,1);
+  }
+  .nav-item {position:relative}
+  .nav-item:hover::after {
+    transform:scaleY(1);
+  }
+  .nav-item.active::after {
+    transform:scaleY(1);
+  }
+
+  /* Button press effect */
+  .btn:active {
+    transform:scale(.96);
+    transition:transform .1s;
+  }
+
+  /* Smooth view transitions */
+  .content-area > div[id] {
+    animation:cardIn .35s cubic-bezier(.16,1,.3,1);
+  }
+
+  /* Priority badge pulse for high priority */
+  @keyframes pulseBadge {
+    0%, 100% {box-shadow:0 0 0 0 rgba(239,68,68,.3)}
+    50% {box-shadow:0 0 0 4px rgba(239,68,68,0)}
+  }
+  .priority-high {
+    animation:pulseBadge 2s ease-in-out infinite;
+  }
 </style>
 </head>
 <body>
@@ -1425,7 +1557,7 @@
     <div class="login-footer">
       <a href="#" onclick="showRegister();return false" data-i18n="login.create_account_link">Neuen Account erstellen &rarr;</a>
     </div>
-    <div class="copyright">TaskFlow v1.0 &copy; 2026 Florian Hesse &middot; <a href="https://comnic-it.de" target="_blank" style="color:inherit;text-decoration:underline">comnic-it.de</a></div>
+    <div class="copyright">TaskFlow v1.1 &copy; 2026 Florian Hesse &middot; <a href="https://comnic-it.de" target="_blank" style="color:inherit;text-decoration:underline">comnic-it.de</a></div>
   </div>
 </div>
 
@@ -1460,7 +1592,7 @@
     <div class="login-footer">
       <a href="#" onclick="showLogin();return false" data-i18n="register.back_link">&larr; Zurück zum Login</a>
     </div>
-    <div class="copyright">TaskFlow v1.0 &copy; 2026 Florian Hesse &middot; <a href="https://comnic-it.de" target="_blank" style="color:inherit;text-decoration:underline">comnic-it.de</a></div>
+    <div class="copyright">TaskFlow v1.1 &copy; 2026 Florian Hesse &middot; <a href="https://comnic-it.de" target="_blank" style="color:inherit;text-decoration:underline">comnic-it.de</a></div>
   </div>
 </div>
 
@@ -1679,9 +1811,12 @@
           </div>
         </div>
 
-        <div class="card">
-          <div class="card-header">
+        <button class="btn btn-primary" id="newTodoToggleBtn" onclick="toggleNewTodoForm()" data-i18n="todos.add_button" style="margin-bottom:16px">+ Aufgabe hinzufügen</button>
+
+        <div class="card" id="newTodoFormCard" style="display:none">
+          <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
             <h3 class="card-title" data-i18n="todos.new_title">Neue Aufgabe</h3>
+            <button class="btn btn-ghost btn-sm" onclick="toggleNewTodoForm()" style="font-size:18px">&times;</button>
           </div>
 
           <div style="display:grid;gap:16px">
@@ -1759,53 +1894,26 @@
         </div>
 
         <div class="card">
-          <h3 class="card-title" data-i18n="settings.language_title">Sprache</h3>
-          <p style="color:var(--text-muted);margin-bottom:20px" data-i18n="settings.language_desc">Sprache der Benutzeroberfläche wählen</p>
-          <div class="lang-switcher lang-switcher-settings">
-            <button class="lang-btn active" onclick="changeLanguage('de')" id="settingsLangDe"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 5 3'%3E%3Crect width='5' height='1' fill='%23000'/%3E%3Crect y='1' width='5' height='1' fill='%23D00'/%3E%3Crect y='2' width='5' height='1' fill='%23FFCE00'/%3E%3C/svg%3E" alt="DE" class="lang-flag"> Deutsch</button>
-            <button class="lang-btn" onclick="changeLanguage('en')" id="settingsLangEn"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 7410 3900'%3E%3Crect width='7410' height='3900' fill='%23b22234'/%3E%3Cpath d='M0,450H7410m0,600H0m0,600H7410m0,600H0m0,600H7410m0,600H0' stroke='%23fff' stroke-width='300'/%3E%3Crect width='2964' height='2100' fill='%233c3b6e'/%3E%3Cg fill='%23fff'%3E%3Cg id='s18b'%3E%3Cg id='s9b'%3E%3Cg id='s5b'%3E%3Cg id='s4b'%3E%3Cpath id='sb' d='M247,90 317.534,307.082 132.873,172.918h228.254L176.466,307.082z'/%3E%3Cuse href='%23sb' y='420'/%3E%3Cuse href='%23sb' y='840'/%3E%3Cuse href='%23sb' y='1260'/%3E%3C/g%3E%3Cuse href='%23sb' y='1680'/%3E%3C/g%3E%3Cuse href='%23s4b' x='494' y='210'/%3E%3C/g%3E%3Cuse href='%23s9b' x='494'/%3E%3C/g%3E%3Cuse href='%23s18b' x='988'/%3E%3Cuse href='%23s9b' x='1976'/%3E%3Cuse href='%23s5b' x='2470'/%3E%3C/g%3E%3C/svg%3E" alt="EN" class="lang-flag"> English</button>
-          </div>
-        </div>
-
-        <div class="card">
-          <h3 class="card-title" data-i18n="settings.password_title">Passwort ändern</h3>
-          <p style="color:var(--text-muted);margin-bottom:20px" data-i18n="settings.password_desc">Eigenes Passwort ändern</p>
-          <div class="form-group">
-            <label class="form-label" data-i18n="settings.password_current">Aktuelles Passwort</label>
-            <input type="password" class="form-input" id="currentPassword" data-i18n-placeholder="settings.password_current_placeholder" placeholder="Aktuelles Passwort eingeben">
-          </div>
-          <div class="form-group">
-            <label class="form-label" data-i18n="settings.password_new">Neues Passwort</label>
-            <input type="password" class="form-input" id="newPassword" data-i18n-placeholder="settings.password_new_placeholder" placeholder="Neues Passwort eingeben">
-          </div>
-          <div class="form-group">
-            <label class="form-label" data-i18n="settings.password_confirm">Passwort bestätigen</label>
-            <input type="password" class="form-input" id="confirmPassword" data-i18n-placeholder="settings.password_confirm_placeholder" placeholder="Neues Passwort wiederholen">
-          </div>
-          <button class="btn btn-primary" onclick="changePassword()"><span data-i18n="settings.password_btn">Passwort ändern</span></button>
-        </div>
-
-        <div class="card">
-          <h3 class="card-title" data-i18n="settings.logo_title">Logo</h3>
-          <p style="color:var(--text-muted);margin-bottom:20px" data-i18n="settings.logo_desc">Eigenes Logo hochladen (ersetzt das Standard-Icon)</p>
-          <div class="logo-upload-area">
-            <div id="logoPreviewContainer">
-              <img id="logoPreview" class="logo-preview" style="display:none" alt="Logo Vorschau">
-              <p id="logoPlaceholder" style="color:var(--text-muted);font-size:14px" data-i18n="settings.logo_none">Kein Logo hochgeladen</p>
+          <h3 class="card-title" style="margin-bottom:12px" data-i18n="settings.password_title">Passwort ändern</h3>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px">
+            <div>
+              <label class="form-label" data-i18n="settings.password_current">Aktuelles Passwort</label>
+              <input type="password" class="form-input" id="currentPassword" data-i18n-placeholder="settings.password_current_placeholder" placeholder="Aktuelles Passwort">
+            </div>
+            <div>
+              <label class="form-label" data-i18n="settings.password_new">Neues Passwort</label>
+              <input type="password" class="form-input" id="newPassword" data-i18n-placeholder="settings.password_new_placeholder" placeholder="Neues Passwort">
+            </div>
+            <div>
+              <label class="form-label" data-i18n="settings.password_confirm">Bestätigen</label>
+              <input type="password" class="form-input" id="confirmPassword" data-i18n-placeholder="settings.password_confirm_placeholder" placeholder="Wiederholen">
             </div>
           </div>
-          <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:16px">
-            <label class="btn btn-primary btn-sm" style="cursor:pointer">
-              <span>📁</span> <span data-i18n="settings.logo_upload">Logo hochladen</span>
-              <input type="file" accept="image/png,image/jpeg,image/svg+xml" onchange="uploadLogo(event)" style="display:none">
-            </label>
-            <button class="btn btn-ghost btn-sm" onclick="removeLogo()"><span>🗑️</span> <span data-i18n="settings.logo_remove">Logo entfernen</span></button>
-          </div>
+          <button class="btn btn-primary btn-sm" onclick="changePassword()"><span data-i18n="settings.password_btn">Passwort ändern</span></button>
         </div>
 
         <div class="card">
-          <h3 class="card-title" data-i18n="settings.theme_title">Farbschema</h3>
-          <p style="color:var(--text-muted);margin-bottom:20px" data-i18n="settings.theme_desc">Wähle dein bevorzugtes Farbthema</p>
+          <h3 class="card-title" style="margin-bottom:12px" data-i18n="settings.theme_title">Farbschema</h3>
 
           <div class="theme-selector">
             <div>
@@ -1835,28 +1943,42 @@
           </div>
         </div>
 
-        <div class="card">
-          <h3 class="card-title" data-i18n="settings.backup_title">Daten-Backup</h3>
-          <p style="color:var(--text-muted);margin-bottom:20px" data-i18n="settings.backup_desc">Exportiere oder importiere deine Daten als JSON-Datei</p>
-          <div style="display:flex;gap:12px;flex-wrap:wrap">
-            <button class="btn btn-primary" onclick="exportData()"><span>📤</span> <span data-i18n="settings.export_btn">Daten exportieren</span></button>
-            <label class="btn btn-secondary" style="margin:0;cursor:pointer">
-              <span>📥</span> <span data-i18n="settings.import_btn">Daten importieren</span>
-              <input type="file" accept=".json" onchange="importData(event)" style="display:none">
-            </label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
+          <div class="card" style="margin-bottom:0">
+            <h3 class="card-title" style="margin-bottom:12px" data-i18n="settings.backup_title">Daten-Backup</h3>
+            <div style="display:flex;gap:12px;flex-wrap:wrap">
+              <button class="btn btn-primary" onclick="exportData()"><span>📤</span> <span data-i18n="settings.export_btn">Daten exportieren</span></button>
+              <label class="btn btn-secondary" style="margin:0;cursor:pointer">
+                <span>📥</span> <span data-i18n="settings.import_btn">Daten importieren</span>
+                <input type="file" accept=".json" onchange="importData(event)" style="display:none">
+              </label>
+            </div>
+          </div>
+
+          <div class="card" style="margin-bottom:0">
+            <h3 class="card-title" style="margin-bottom:12px" data-i18n="settings.update_title">Updates</h3>
+            <p style="color:var(--text-muted);margin-bottom:12px">
+              <span data-i18n="settings.update_current">Aktuelle Version:</span>
+              <strong id="currentVersion">...</strong>
+            </p>
+            <div id="updateStatus" style="margin-bottom:12px;display:none"></div>
+            <div style="display:flex;gap:12px;flex-wrap:wrap">
+              <button class="btn btn-primary" id="checkUpdateBtn" onclick="checkForUpdate()"><span data-i18n="settings.update_check">Update prüfen</span></button>
+              <button class="btn btn-secondary" id="installUpdateBtn" onclick="installUpdate()" style="display:none"><span data-i18n="settings.update_install">Update installieren</span></button>
+            </div>
           </div>
         </div>
 
         <div class="card">
-          <h3 class="card-title" data-i18n="settings.danger_title">Gefahr Zone</h3>
-          <p style="color:var(--text-muted);margin-bottom:20px" data-i18n="settings.danger_desc">Alle Daten unwiderruflich löschen</p>
+          <h3 class="card-title" style="margin-bottom:12px" data-i18n="settings.danger_title">Reset</h3>
+          <p style="color:var(--text-muted);margin-bottom:12px" data-i18n="settings.danger_desc">Alle Daten unwiderruflich löschen</p>
           <button class="btn btn-danger" onclick="resetAllData()"><span>🗑️</span> <span data-i18n="settings.danger_btn">Alle Daten zurücksetzen</span></button>
         </div>
       </div>
     </div>
 
     <footer class="content-footer">
-      <div class="copyright">TaskFlow v1.0 &copy; 2026 Florian Hesse &middot; <a href="https://comnic-it.de" target="_blank" style="color:inherit;text-decoration:underline">comnic-it.de</a></div>
+      <div class="copyright">TaskFlow v1.1 &copy; 2026 Florian Hesse &middot; <a href="https://comnic-it.de" target="_blank" style="color:inherit;text-decoration:underline">comnic-it.de</a></div>
     </footer>
   </div>
 </div>

@@ -1,5 +1,5 @@
 /**
- * TaskFlow v1.0 - App
+ * TaskFlow v1.1 - App
  * Copyright (c) 2026 Florian Hesse
  * Fischer Str. 11, 16515 Oranienburg
  * https://comnic-it.de
@@ -15,6 +15,21 @@ let currentTodoView = 'active';
 // i18n
 let translations = {};
 let currentLang = 'de';
+
+// Animated counter
+function animateValue(el, target, suffix = '') {
+  const start = parseInt(el.textContent) || 0;
+  if (start === target) { el.textContent = target + suffix; return; }
+  const duration = 500;
+  const startTime = performance.now();
+  function step(now) {
+    const progress = Math.min((now - startTime) / duration, 1);
+    const ease = 1 - Math.pow(1 - progress, 3); // easeOutCubic
+    el.textContent = Math.round(start + (target - start) * ease) + suffix;
+    if (progress < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
 
 function t(key) {
   return translations[key] || key;
@@ -85,15 +100,93 @@ async function apiCall(action, data = {}) {
   }
 }
 
+// Version & Updates
+let appVersion = '1.0.0';
+
+async function loadVersion() {
+  const result = await apiCall('getVersion');
+  if (result.success && result.data) {
+    appVersion = result.data.version || '1.0.0';
+  }
+  document.querySelectorAll('.copyright').forEach(el => {
+    const link = el.querySelector('a');
+    const linkHtml = link ? ' \u00b7 ' + link.outerHTML : '';
+    el.innerHTML = 'TaskFlow v' + appVersion + ' \u00a9 2026 Florian Hesse' + linkHtml;
+  });
+  const versionEl = document.getElementById('currentVersion');
+  if (versionEl) versionEl.textContent = 'v' + appVersion;
+}
+
+async function checkForUpdate() {
+  const btn = document.getElementById('checkUpdateBtn');
+  const status = document.getElementById('updateStatus');
+  const installBtn = document.getElementById('installUpdateBtn');
+
+  btn.disabled = true;
+  btn.textContent = t('settings.update_checking');
+  status.style.display = 'none';
+  installBtn.style.display = 'none';
+
+  const result = await apiCall('checkUpdate');
+  btn.disabled = false;
+  btn.textContent = t('settings.update_check');
+
+  if (result.success) {
+    status.style.display = 'block';
+    if (result.data.update_available) {
+      status.innerHTML = '<div style="padding:12px;background:var(--primary);color:#fff;border-radius:8px">' +
+        t('settings.update_available') + ': <strong>v' + result.data.remote + '</strong>' +
+        '</div>';
+      installBtn.style.display = 'inline-flex';
+    } else {
+      status.innerHTML = '<div style="padding:12px;background:var(--bg-secondary);border-radius:8px;color:var(--text)">' +
+        t('settings.update_up_to_date') +
+        '</div>';
+    }
+  } else {
+    status.style.display = 'block';
+    status.innerHTML = '<div style="padding:12px;background:var(--danger);color:#fff;border-radius:8px">' +
+      (result.message || t('settings.update_error')) +
+      '</div>';
+  }
+}
+
+async function installUpdate() {
+  const installBtn = document.getElementById('installUpdateBtn');
+  const status = document.getElementById('updateStatus');
+
+  if (!confirm(t('settings.update_confirm'))) return;
+
+  installBtn.disabled = true;
+  installBtn.textContent = t('settings.update_installing');
+
+  const result = await apiCall('doUpdate');
+
+  if (result.success) {
+    status.innerHTML = '<div style="padding:12px;background:var(--primary);color:#fff;border-radius:8px">' +
+      result.data.message + ' (v' + result.data.version + ')' +
+      '</div>';
+    installBtn.style.display = 'none';
+    loadVersion();
+    setTimeout(() => location.reload(), 2000);
+  } else {
+    status.innerHTML = '<div style="padding:12px;background:var(--danger);color:#fff;border-radius:8px">' +
+      (result.message || t('settings.update_error')) +
+      '</div>';
+    installBtn.disabled = false;
+    installBtn.textContent = t('settings.update_install');
+  }
+}
+
 // Copyright Protection
 (function() {
-  const _cf = 'TaskFlow v1.0 \u00a9 2026 Florian Hesse \u00b7 <a href="https://comnic-it.de" target="_blank" style="color:inherit;text-decoration:underline">comnic-it.de</a>';
+  const _cf = () => 'TaskFlow v' + appVersion + ' \u00a9 2026 Florian Hesse \u00b7 <a href="https://comnic-it.de" target="_blank" style="color:inherit;text-decoration:underline">comnic-it.de</a>';
   function _pc() {
     document.querySelectorAll('.content-footer .copyright').forEach(el => {
-      if (el.innerHTML !== _cf) el.innerHTML = _cf;
+      if (!el.innerHTML.includes('Florian Hesse')) el.innerHTML = _cf();
     });
     document.querySelectorAll('.login-box .copyright').forEach(el => {
-      if (el.innerHTML !== _cf) el.innerHTML = _cf;
+      if (!el.innerHTML.includes('Florian Hesse')) el.innerHTML = _cf();
     });
     document.querySelectorAll('.content-footer').forEach(el => {
       el.style.removeProperty('display');
@@ -105,7 +198,7 @@ async function apiCall(action, data = {}) {
     if (document.getElementById('appContainer') && !document.querySelector('.content-footer')) {
       const f = document.createElement('footer');
       f.className = 'content-footer';
-      f.innerHTML = '<div class="copyright">' + _cf + '</div>';
+      f.innerHTML = '<div class="copyright">' + _cf() + '</div>';
       document.querySelector('.main-content').appendChild(f);
     }
   }
@@ -127,6 +220,7 @@ async function init() {
   await loadLanguage(savedLang);
   loadTheme();
   applyLogo();
+  loadVersion();
 
   // Check if user is logged in
   const sessionResult = await apiCall('getSession');
@@ -255,21 +349,21 @@ async function createProject() {
 function showDashboard() {
   setActiveNav(0);
   hideAllViews();
-  document.getElementById('dashboardView').style.display = 'block';
+  showViewAnimated('dashboardView');
   renderDashboard();
 }
 
 function showProjects() {
   setActiveNav(1);
   hideAllViews();
-  document.getElementById('projectsView').style.display = 'block';
+  showViewAnimated('projectsView');
   renderProjects();
 }
 
 async function showUsers() {
   setActiveNav(2);
   hideAllViews();
-  document.getElementById('usersView').style.display = 'block';
+  showViewAnimated('usersView');
 
   const result = await apiCall('getUsers');
   if (result.success) {
@@ -281,15 +375,28 @@ async function showUsers() {
 function showSettings() {
   setActiveNav(3);
   hideAllViews();
-  document.getElementById('settingsView').style.display = 'block';
+  showViewAnimated('settingsView');
 }
 
 function hideAllViews() {
-  document.getElementById('dashboardView').style.display = 'none';
-  document.getElementById('projectsView').style.display = 'none';
-  document.getElementById('usersView').style.display = 'none';
-  document.getElementById('settingsView').style.display = 'none';
-  document.getElementById('projectDetailView').style.display = 'none';
+  ['dashboardView','projectsView','usersView','settingsView','projectDetailView'].forEach(id => {
+    const el = document.getElementById(id);
+    el.style.display = 'none';
+    el.style.opacity = '0';
+    el.style.transform = 'translateY(12px)';
+  });
+}
+
+function showViewAnimated(id) {
+  const el = document.getElementById(id);
+  el.style.display = 'block';
+  el.style.opacity = '0';
+  el.style.transform = 'translateY(12px)';
+  requestAnimationFrame(() => {
+    el.style.transition = 'opacity .3s ease, transform .3s ease';
+    el.style.opacity = '1';
+    el.style.transform = 'translateY(0)';
+  });
 }
 
 function setActiveNav(index) {
@@ -307,10 +414,10 @@ function renderDashboard() {
   const doneTodos = activeTodos.filter(t => t.done).length;
   const progress = activeTodos.length ? Math.round((doneTodos / activeTodos.length) * 100) : 0;
 
-  document.getElementById('statProjects').textContent = totalProjects;
-  document.getElementById('statOpen').textContent = openTodos;
-  document.getElementById('statDone').textContent = doneTodos;
-  document.getElementById('statProgress').textContent = progress + '%';
+  animateValue(document.getElementById('statProjects'), totalProjects);
+  animateValue(document.getElementById('statOpen'), openTodos);
+  animateValue(document.getElementById('statDone'), doneTodos);
+  animateValue(document.getElementById('statProgress'), progress, '%');
   document.getElementById('projectCount').textContent = totalProjects;
 
   const container = document.getElementById('dashboardProjects');
@@ -466,7 +573,7 @@ function openProjectDetail(projectId) {
   if (!project) return;
 
   hideAllViews();
-  document.getElementById('projectDetailView').style.display = 'block';
+  showViewAnimated('projectDetailView');
 
   document.getElementById('projectDetailTitle').textContent = project.name;
   document.getElementById('projectDetailDesc').textContent = project.desc || t('projects.no_desc');
@@ -533,10 +640,32 @@ function renderProjectStats() {
   const open = total - done;
   const progress = total ? Math.round((done / total) * 100) : 0;
 
-  document.getElementById('projectStatTotal').textContent = total;
-  document.getElementById('projectStatOpen').textContent = open;
-  document.getElementById('projectStatDone').textContent = done;
-  document.getElementById('projectStatProgress').textContent = progress + '%';
+  animateValue(document.getElementById('projectStatTotal'), total);
+  animateValue(document.getElementById('projectStatOpen'), open);
+  animateValue(document.getElementById('projectStatDone'), done);
+  animateValue(document.getElementById('projectStatProgress'), progress, '%');
+}
+
+function toggleNewTodoForm() {
+  const form = document.getElementById('newTodoFormCard');
+  const btn = document.getElementById('newTodoToggleBtn');
+  const isVisible = form.style.display !== 'none';
+  if (isVisible) {
+    form.style.opacity = '0';
+    form.style.transform = 'translateY(-10px)';
+    setTimeout(() => { form.style.display = 'none'; btn.style.display = 'inline-flex'; }, 200);
+  } else {
+    form.style.display = 'block';
+    form.style.opacity = '0';
+    form.style.transform = 'translateY(-10px)';
+    requestAnimationFrame(() => {
+      form.style.transition = 'opacity .2s, transform .2s';
+      form.style.opacity = '1';
+      form.style.transform = 'translateY(0)';
+    });
+    btn.style.display = 'none';
+    document.getElementById('newTodoText').focus();
+  }
 }
 
 async function addTodoToProject() {
@@ -565,6 +694,7 @@ async function addTodoToProject() {
     await loadProjectsFromServer();
     document.getElementById('newTodoText').value = '';
     document.getElementById('newTodoNote').value = '';
+    toggleNewTodoForm();
     renderProjectStats();
     renderProjectTodos();
     renderDashboard();

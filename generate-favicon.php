@@ -1,6 +1,6 @@
 <?php
 /**
- * TaskFlow v1.0 - Favicon Generator
+ * TaskFlow v1.1 - Favicon Generator
  * Copyright (c) 2026 Florian Hesse
  * Fischer Str. 11, 16515 Oranienburg
  * https://comnic-it.de
