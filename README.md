@@ -18,9 +18,14 @@
 ## Features
 
 - User login & registration
-- Create and manage projects
-- To-do lists with categories and priorities
+- Create and manage projects with color coding
+- To-do lists with categories, priorities, and due dates
+- Kanban board with drag & drop
+- Drag & drop task reordering in list view
+- Global search across projects and tasks
+- Dark mode (auto-detects system preference)
 - 6 color themes
+- Activity log on dashboard
 - Archive function for completed tasks
 - Export/Import as JSON
 - In-app update system (git pull)
@@ -81,7 +86,9 @@ taskflow/
 ├── data/              # JSON data storage (created by installer)
 │   ├── .htaccess      # Access protection
 │   ├── users.json     # User data
-│   └── projects.json  # Projects & to-dos
+│   ├── projects.json  # Projects & to-dos
+│   └── activity.json  # Activity log
+├── LICENSE            # MIT License with Attribution Clause
 └── README.md
 ```
 
@@ -127,9 +134,14 @@ See [LICENSE](LICENSE) for full details. Free to use, modify, and distribute —
 ### Funktionen
 
 - Benutzer-Login & Registrierung
-- Projekte erstellen und verwalten
-- To-Do-Listen mit Kategorien und Prioritäten
+- Projekte erstellen und verwalten mit Farbmarkierung
+- To-Do-Listen mit Kategorien, Prioritäten und Fälligkeitsdaten
+- Kanban Board mit Drag & Drop
+- Drag & Drop Sortierung in der Listenansicht
+- Globale Suche über Projekte und Aufgaben
+- Dunkelmodus (erkennt System-Einstellung automatisch)
 - 6 verschiedene Farbthemen
+- Aktivitäts-Log im Dashboard
 - Archiv-Funktion für erledigte Aufgaben
 - Export/Import als JSON
 - In-App Update-System (git pull)
