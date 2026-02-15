@@ -1,6 +1,6 @@
 <?php
 /**
- * TaskFlow v1.1 - API
+ * TaskFlow v1.2 - API
  * Copyright (c) 2026 Florian Hesse
  * Fischer Str. 11, 16515 Oranienburg
  * https://comnic-it.de
