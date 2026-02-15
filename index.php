@@ -1586,7 +1586,7 @@ if (!file_exists(__DIR__ . '/data/users.json') && file_exists(__DIR__ . '/instal
     transform:scaleY(1);
   }
   .nav-item.active::after {
-    transform:scaleY(1);
+    transform:scaleY(0);
   }
 
   /* Button press effect */
