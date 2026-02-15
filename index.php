@@ -2108,6 +2108,58 @@ if (!file_exists(__DIR__ . '/data/users.json') && file_exists(__DIR__ . '/instal
   </div>
 </div>
 
+<!-- Edit Todo Modal -->
+<div class="modal" id="editTodoModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2 class="modal-title" data-i18n="todos.edit_title">Aufgabe bearbeiten</h2>
+      <button class="modal-close" onclick="closeModal('editTodoModal')">×</button>
+    </div>
+    <input type="hidden" id="editTodoId">
+
+    <div class="form-group">
+      <label class="form-label" data-i18n="todos.task_label">Aufgabe</label>
+      <input type="text" class="form-input" id="editTodoText" data-i18n-placeholder="todos.task_placeholder" placeholder="Aufgabe">
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px" class="form-group">
+      <div>
+        <label class="form-label" data-i18n="todos.category">Kategorie</label>
+        <select class="form-input" id="editTodoCategory">
+          <option value="Development">💻 Development</option>
+          <option value="Design">🎨 Design</option>
+          <option value="Content">📝 Content</option>
+          <option value="Testing">🧪 Testing</option>
+          <option value="Meeting">👥 Meeting</option>
+          <option value="Other" data-i18n="todos.cat_other">📌 Sonstiges</option>
+        </select>
+      </div>
+      <div>
+        <label class="form-label" data-i18n="todos.priority">Priorität</label>
+        <select class="form-input" id="editTodoPriority">
+          <option value="low" data-i18n="todos.priority_low">Niedrig</option>
+          <option value="medium" data-i18n="todos.priority_medium">Normal</option>
+          <option value="high" data-i18n="todos.priority_high">Hoch</option>
+        </select>
+      </div>
+      <div>
+        <label class="form-label" data-i18n="todos.due_date">Fälligkeitsdatum</label>
+        <input type="date" class="form-input" id="editTodoDueDate">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" data-i18n="todos.note_label">Notiz (optional)</label>
+      <textarea class="form-input" id="editTodoNote" data-i18n-placeholder="todos.note_placeholder" placeholder="Weitere Details oder Hinweise..." style="min-height:80px;resize:vertical"></textarea>
+    </div>
+
+    <div style="display:flex;gap:12px;margin-top:24px">
+      <button class="btn btn-primary" onclick="saveEditTodo()" style="flex:1" data-i18n="todos.edit_save">Speichern</button>
+      <button class="btn btn-ghost" onclick="closeModal('editTodoModal')" data-i18n="modal.cancel">Abbrechen</button>
+    </div>
+  </div>
+</div>
+
 <script src="app.js"></script>
 </body>
 </html>
