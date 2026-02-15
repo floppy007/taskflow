@@ -313,6 +313,11 @@ async function loadProjectsFromServer() {
   }
 }
 
+function openFeedback() {
+  const repoUrl = 'https://github.com/floppy007/taskflow/issues/new/choose';
+  window.open(repoUrl, '_blank');
+}
+
 function openNewProjectModal() {
   document.getElementById('newProjectModal').classList.add('active');
   document.getElementById('newProjectName').focus();
