@@ -11,6 +11,7 @@ let projects = [];
 let currentUser = null;
 let currentProjectId = null;
 let currentTodoView = 'active';
+let currentProjectView = 'list';
 
 // i18n
 let translations = {};
@@ -219,6 +220,7 @@ async function init() {
   }
   await loadLanguage(savedLang);
   loadTheme();
+  loadDarkMode();
   applyLogo();
   loadVersion();
 
@@ -424,6 +426,7 @@ function renderDashboard() {
   animateValue(document.getElementById('statDone'), doneTodos);
   animateValue(document.getElementById('statProgress'), progress, '%');
   document.getElementById('projectCount').textContent = totalProjects;
+  renderActivityFeed();
 
   const container = document.getElementById('dashboardProjects');
 
@@ -584,7 +587,16 @@ function openProjectDetail(projectId) {
   document.getElementById('projectDetailDesc').textContent = project.desc || t('projects.no_desc');
 
   currentTodoView = 'active';
+  currentProjectView = 'list';
   switchTodoView('active');
+
+  // Reset view toggle buttons
+  const kanbanContainer = document.getElementById('kanbanContainer');
+  if (kanbanContainer) kanbanContainer.style.display = 'none';
+  const listBtn = document.getElementById('listViewBtn');
+  const kanbanBtn = document.getElementById('kanbanViewBtn');
+  if (listBtn) { listBtn.style.background = 'var(--card)'; listBtn.style.boxShadow = 'var(--shadow-sm)'; listBtn.classList.remove('btn-ghost'); }
+  if (kanbanBtn) { kanbanBtn.style.background = 'transparent'; kanbanBtn.style.boxShadow = 'none'; kanbanBtn.classList.add('btn-ghost'); }
 
   renderProjectStats();
   renderProjectTodos();
@@ -686,19 +698,22 @@ async function addTodoToProject() {
   const category = document.getElementById('newTodoCategory').value;
   const priority = document.getElementById('newTodoPriority').value;
   const note = document.getElementById('newTodoNote').value.trim();
+  const dueDate = document.getElementById('newTodoDueDate').value || null;
 
   const result = await apiCall('addTodo', {
     projectId: currentProjectId,
     text,
     category,
     priority,
-    note
+    note,
+    dueDate
   });
 
   if (result.success) {
     await loadProjectsFromServer();
     document.getElementById('newTodoText').value = '';
     document.getElementById('newTodoNote').value = '';
+    document.getElementById('newTodoDueDate').value = '';
     toggleNewTodoForm();
     renderProjectStats();
     renderProjectTodos();
@@ -806,6 +821,7 @@ function renderProjectTodos() {
             <div class="todo-badges">
               <span class="todo-badge badge-category">${categoryIcons[todo.category] || '📌'} ${todo.category}</span>
               <span class="todo-badge badge-priority ${todo.priority}">${priorityLabels[todo.priority]}</span>
+              ${todo.dueDate ? (() => { const di = getDueDateInfo(todo.dueDate); return `<span class="todo-badge badge-due ${di.class}">📅 ${di.label}</span>`; })() : ''}
             </div>
             <div class="todo-meta" style="font-size:12px;color:var(--text-muted);margin-top:4px">
               ${todo.createdBy ? `<span>${escapeHtml(t('todos.created_by'))} @${escapeHtml(todo.createdBy)}</span>` : ''}
@@ -860,13 +876,15 @@ async function editTodo(todoId) {
   if (!newText || !newText.trim()) return;
 
   const newNote = prompt(t('todos.prompt_note'), todo.note);
+  const newDueDate = prompt(t('todos.prompt_due_date'), todo.dueDate || '');
 
   const result = await apiCall('updateTodo', {
     projectId: currentProjectId,
     todoId,
     updates: {
       text: newText.trim(),
-      note: newNote !== null ? newNote.trim() : todo.note
+      note: newNote !== null ? newNote.trim() : todo.note,
+      dueDate: newDueDate || null
     }
   });
 
@@ -1109,6 +1127,253 @@ function changeTheme(theme) {
 function loadTheme() {
   const savedTheme = localStorage.getItem('taskflow_theme') || 'purple';
   changeTheme(savedTheme);
+}
+
+// Due Date Helper
+function getDueDateInfo(dueDate) {
+  if (!dueDate) return null;
+  const now = new Date(); now.setHours(0,0,0,0);
+  const due = new Date(dueDate); due.setHours(0,0,0,0);
+  const diff = Math.ceil((due - now) / (1000*60*60*24));
+  if (diff < 0) return { class: 'overdue', label: t('todos.due_overdue') };
+  if (diff === 0) return { class: 'today', label: t('todos.due_today') };
+  if (diff <= 3) return { class: 'upcoming', label: due.toLocaleDateString(currentLang === 'de' ? 'de-DE' : 'en-US') };
+  return { class: 'later', label: due.toLocaleDateString(currentLang === 'de' ? 'de-DE' : 'en-US') };
+}
+
+// Dark Mode
+function toggleDarkMode() {
+  const isDark = document.body.getAttribute('data-dark') === 'true';
+  const newVal = !isDark;
+  document.body.setAttribute('data-dark', newVal);
+  localStorage.setItem('taskflow_dark', newVal);
+  updateDarkModeUI(newVal);
+}
+
+function loadDarkMode() {
+  const savedDark = localStorage.getItem('taskflow_dark') === 'true';
+  document.body.setAttribute('data-dark', savedDark);
+  updateDarkModeUI(savedDark);
+}
+
+function updateDarkModeUI(isDark) {
+  const toggle = document.getElementById('darkModeToggle');
+  if (toggle) toggle.textContent = isDark ? '☀️' : '🌙';
+  const checkbox = document.getElementById('darkModeCheckbox');
+  if (checkbox) checkbox.checked = isDark;
+}
+
+// Kanban Board
+function switchProjectView(view) {
+  currentProjectView = view;
+  const listBtn = document.getElementById('listViewBtn');
+  const kanbanBtn = document.getElementById('kanbanViewBtn');
+  const kanbanContainer = document.getElementById('kanbanContainer');
+  const newTodoBtn = document.getElementById('newTodoToggleBtn');
+  const newTodoForm = document.getElementById('newTodoFormCard');
+  const todoCard = document.getElementById('todoListContainer')?.closest('.card');
+
+  if (view === 'list') {
+    listBtn.style.background = 'var(--card)'; listBtn.style.boxShadow = 'var(--shadow-sm)'; listBtn.classList.remove('btn-ghost');
+    kanbanBtn.style.background = 'transparent'; kanbanBtn.style.boxShadow = 'none'; kanbanBtn.classList.add('btn-ghost');
+    if (todoCard) todoCard.style.display = '';
+    if (newTodoBtn) newTodoBtn.style.display = '';
+    kanbanContainer.style.display = 'none';
+    renderProjectTodos();
+  } else {
+    kanbanBtn.style.background = 'var(--card)'; kanbanBtn.style.boxShadow = 'var(--shadow-sm)'; kanbanBtn.classList.remove('btn-ghost');
+    listBtn.style.background = 'transparent'; listBtn.style.boxShadow = 'none'; listBtn.classList.add('btn-ghost');
+    if (newTodoForm) newTodoForm.style.display = 'none';
+    if (newTodoBtn) newTodoBtn.style.display = 'none';
+    if (todoCard) todoCard.style.display = 'none';
+    kanbanContainer.style.display = 'block';
+    renderKanbanBoard();
+  }
+}
+
+function renderKanbanBoard() {
+  const project = projects.find(p => p.id === currentProjectId);
+  if (!project) return;
+
+  const container = document.getElementById('kanbanContainer');
+  const todos = (project.todos || []).filter(td => !td.archived);
+
+  const columns = {
+    todo: { title: t('kanban.col_todo'), icon: '📋', items: [] },
+    inprogress: { title: t('kanban.col_inprogress'), icon: '🔄', items: [] },
+    done: { title: t('kanban.col_done'), icon: '✅', items: [] }
+  };
+
+  todos.forEach(td => {
+    const status = td.status || (td.done ? 'done' : 'todo');
+    if (columns[status]) columns[status].items.push(td);
+    else columns.todo.items.push(td);
+  });
+
+  const categoryIcons = { Development:'💻', Design:'🎨', Content:'📝', Testing:'🧪', Meeting:'👥', Other:'📌' };
+  const priorityLabels = { low: t('todos.priority_low'), medium: t('todos.priority_medium'), high: t('todos.priority_high') };
+
+  container.innerHTML = '<div class="kanban-board">' +
+    Object.entries(columns).map(([status, col]) => `
+      <div class="kanban-column" data-status="${status}"
+           ondragover="event.preventDefault();this.classList.add('drag-over')"
+           ondragleave="this.classList.remove('drag-over')"
+           ondrop="dropKanbanCard(event,'${status}');this.classList.remove('drag-over')">
+        <div class="kanban-column-header">
+          <span>${col.icon} ${col.title}</span>
+          <span class="kanban-column-count">${col.items.length}</span>
+        </div>
+        ${col.items.map(td => `
+          <div class="kanban-card" draggable="true" data-todo-id="${td.id}"
+               ondragstart="event.dataTransfer.setData('text/plain','${td.id}');this.classList.add('dragging')"
+               ondragend="this.classList.remove('dragging')">
+            <div class="kanban-card-title">${escapeHtml(td.text)}</div>
+            <div class="kanban-card-badges">
+              <span class="todo-badge badge-category">${categoryIcons[td.category]||'📌'} ${td.category}</span>
+              <span class="todo-badge badge-priority ${td.priority}">${priorityLabels[td.priority]}</span>
+              ${td.dueDate ? (() => { const di = getDueDateInfo(td.dueDate); return `<span class="todo-badge badge-due ${di.class}">📅 ${di.label}</span>`; })() : ''}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `).join('') + '</div>';
+}
+
+async function dropKanbanCard(event, newStatus) {
+  event.preventDefault();
+  const todoId = parseInt(event.dataTransfer.getData('text/plain'));
+  const updates = { status: newStatus };
+  if (newStatus === 'done') updates.done = true;
+  else updates.done = false;
+
+  const result = await apiCall('updateTodo', {
+    projectId: currentProjectId,
+    todoId,
+    updates
+  });
+
+  if (result.success) {
+    await loadProjectsFromServer();
+    renderKanbanBoard();
+    renderProjectStats();
+    renderDashboard();
+  }
+}
+
+// Global Search
+let searchTimeout = null;
+
+function onSearchInput() {
+  clearTimeout(searchTimeout);
+  const query = document.getElementById('globalSearchInput').value.trim().toLowerCase();
+  if (query.length < 2) {
+    document.getElementById('searchResults').classList.remove('active');
+    return;
+  }
+  searchTimeout = setTimeout(() => performSearch(query), 250);
+}
+
+function performSearch(query) {
+  const results = [];
+
+  projects.forEach(p => {
+    if (p.name.toLowerCase().includes(query)) {
+      results.push({ type: 'project', projectId: p.id, title: p.name, context: p.desc || '' });
+    }
+    (p.todos || []).forEach(td => {
+      if (td.archived) return;
+      const matchText = td.text.toLowerCase().includes(query);
+      const matchNote = (td.note || '').toLowerCase().includes(query);
+      if (matchText || matchNote) {
+        results.push({
+          type: 'todo', projectId: p.id, todoId: td.id, title: td.text,
+          context: p.name + (matchNote ? ' - ' + td.note.substring(0, 80) : '')
+        });
+      }
+    });
+  });
+
+  const container = document.getElementById('searchResults');
+
+  if (results.length === 0) {
+    container.innerHTML = `<div class="search-no-results">${escapeHtml(t('search.no_results'))}</div>`;
+    container.classList.add('active');
+    return;
+  }
+
+  container.innerHTML = results.slice(0, 15).map(r => `
+    <div class="search-result-item" onclick="navigateToSearchResult(${r.projectId})">
+      <div class="search-result-type">${r.type === 'project' ? '📁 ' + t('search.type_project') : '✓ ' + t('search.type_task')}</div>
+      <div class="search-result-title">${escapeHtml(r.title)}</div>
+      <div class="search-result-context">${escapeHtml(r.context)}</div>
+    </div>
+  `).join('');
+  container.classList.add('active');
+}
+
+function navigateToSearchResult(projectId) {
+  document.getElementById('searchResults').classList.remove('active');
+  document.getElementById('globalSearchInput').value = '';
+  openProjectDetail(projectId);
+}
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.search-bar')) {
+    const sr = document.getElementById('searchResults');
+    if (sr) sr.classList.remove('active');
+  }
+});
+
+// Activity Feed
+async function renderActivityFeed() {
+  const container = document.getElementById('activityFeed');
+  if (!container) return;
+
+  const result = await apiCall('getActivity', { count: 20 });
+  if (!result.success || !result.data || result.data.length === 0) {
+    container.innerHTML = `<div class="empty-todos"><p>${escapeHtml(t('activity.empty'))}</p></div>`;
+    return;
+  }
+
+  const actionIcons = {
+    user_login: '🔑', project_created: '📁', project_deleted: '🗑️',
+    todo_created: '➕', todo_completed: '✅', todo_deleted: '❌'
+  };
+
+  const actionLabels = {
+    user_login: t('activity.user_login'), project_created: t('activity.project_created'),
+    project_deleted: t('activity.project_deleted'), todo_created: t('activity.todo_created'),
+    todo_completed: t('activity.todo_completed'), todo_deleted: t('activity.todo_deleted')
+  };
+
+  container.innerHTML = result.data.map(a => `
+    <div class="activity-item">
+      <div class="activity-icon">${actionIcons[a.action] || '📌'}</div>
+      <div>
+        <div class="activity-text">
+          <strong>${escapeHtml(a.userName)}</strong> ${escapeHtml(actionLabels[a.action] || a.action)}
+          ${a.projectName ? ' - <em>' + escapeHtml(a.projectName) + '</em>' : ''}
+          ${a.todoText ? ': ' + escapeHtml(a.todoText) : ''}
+        </div>
+        <div class="activity-time">${timeAgo(a.timestamp)}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function timeAgo(dateStr) {
+  const now = new Date();
+  const date = new Date(dateStr);
+  const seconds = Math.floor((now - date) / 1000);
+
+  if (seconds < 60) return t('activity.just_now');
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return minutes + ' ' + t('activity.minutes_ago');
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return hours + ' ' + t('activity.hours_ago');
+  const days = Math.floor(hours / 24);
+  if (days < 7) return days + ' ' + t('activity.days_ago');
+  return date.toLocaleDateString(currentLang === 'de' ? 'de-DE' : 'en-US');
 }
 
 function escapeHtml(str) {
