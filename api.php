@@ -1,6 +1,6 @@
 <?php
 /**
- * TaskFlow v1.0 - API
+ * TaskFlow v1.1 - API
  * Copyright (c) 2026 Florian Hesse
  * Fischer Str. 11, 16515 Oranienburg
  * https://comnic-it.de
@@ -61,6 +61,12 @@ $messages = [
         'user_deleted' => 'Benutzer gelöscht',
         'user_delete_self' => 'Du kannst dich nicht selbst löschen',
         'user_not_found' => 'Benutzer nicht gefunden',
+        'update_no_repo' => 'Kein Repository konfiguriert',
+        'update_check_failed' => 'Update-Prüfung fehlgeschlagen',
+        'update_git_not_found' => 'Git ist nicht installiert',
+        'update_no_git' => 'Kein Git-Repository vorhanden',
+        'update_success' => 'Update erfolgreich installiert',
+        'update_failed' => 'Update fehlgeschlagen',
     ],
     'en' => [
         'login_required' => 'Username and password required',
@@ -91,6 +97,12 @@ $messages = [
         'user_deleted' => 'User deleted',
         'user_delete_self' => 'You cannot delete yourself',
         'user_not_found' => 'User not found',
+        'update_no_repo' => 'No repository configured',
+        'update_check_failed' => 'Update check failed',
+        'update_git_not_found' => 'Git is not installed',
+        'update_no_git' => 'No git repository found',
+        'update_success' => 'Update installed successfully',
+        'update_failed' => 'Update failed',
     ],
 ];
 
@@ -639,6 +651,98 @@ switch ($action) {
         saveProjects($data['projects']);
 
         response(true, null, msg('import_success'));
+        break;
+
+    case 'getVersion':
+        $versionFile = __DIR__ . '/version.json';
+        if (file_exists($versionFile)) {
+            $version = json_decode(file_get_contents($versionFile), true);
+            response(true, $version);
+        } else {
+            response(true, ['version' => '0.0.0', 'date' => '']);
+        }
+        break;
+
+    case 'checkUpdate':
+        if (!isset($_SESSION['user'])) {
+            response(false, null, msg('not_logged_in'));
+        }
+
+        $localVersion = json_decode(file_get_contents(__DIR__ . '/version.json'), true);
+        $repoUrl = $localVersion['repo'] ?? '';
+
+        if (empty($repoUrl)) {
+            response(true, ['update_available' => false, 'local' => $localVersion['version'], 'remote' => $localVersion['version'], 'message' => msg('update_no_repo')]);
+            break;
+        }
+
+        $rawUrl = str_replace('github.com', 'raw.githubusercontent.com', $repoUrl);
+        $rawUrl = rtrim($rawUrl, '/') . '/main/version.json';
+
+        $ctx = stream_context_create(['http' => ['timeout' => 10, 'header' => 'User-Agent: TaskFlow-Updater']]);
+        $remoteJson = @file_get_contents($rawUrl, false, $ctx);
+
+        if ($remoteJson === false) {
+            response(false, null, msg('update_check_failed'));
+            break;
+        }
+
+        $remoteVersion = json_decode($remoteJson, true);
+        if (!$remoteVersion || !isset($remoteVersion['version'])) {
+            response(false, null, msg('update_check_failed'));
+            break;
+        }
+
+        $updateAvailable = version_compare($remoteVersion['version'], $localVersion['version'], '>');
+        response(true, [
+            'update_available' => $updateAvailable,
+            'local' => $localVersion['version'],
+            'remote' => $remoteVersion['version'],
+            'remote_date' => $remoteVersion['date'] ?? ''
+        ]);
+        break;
+
+    case 'doUpdate':
+        if (!isset($_SESSION['user'])) {
+            response(false, null, msg('not_logged_in'));
+        }
+
+        $gitPath = 'git';
+        $projectDir = __DIR__;
+
+        // Prüfe ob git verfügbar ist
+        $output = [];
+        $returnCode = 0;
+        exec("$gitPath --version 2>&1", $output, $returnCode);
+        if ($returnCode !== 0) {
+            response(false, null, msg('update_git_not_found'));
+            break;
+        }
+
+        // Prüfe ob es ein Git-Repo ist
+        if (!is_dir($projectDir . '/.git')) {
+            response(false, null, msg('update_no_git'));
+            break;
+        }
+
+        // Git pull ausführen
+        $output = [];
+        $returnCode = 0;
+        exec("cd " . escapeshellarg($projectDir) . " && $gitPath pull origin main 2>&1", $output, $returnCode);
+
+        $outputStr = implode("\n", $output);
+
+        if ($returnCode === 0) {
+            // Neue Version lesen
+            $newVersion = json_decode(file_get_contents($projectDir . '/version.json'), true);
+            response(true, [
+                'message' => msg('update_success'),
+                'version' => $newVersion['version'] ?? '?',
+                'output' => $outputStr
+            ]);
+        } else {
+            response(false, ['output' => $outputStr], msg('update_failed'));
+        }
         break;
 
     default:
