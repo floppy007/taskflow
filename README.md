@@ -150,7 +150,7 @@ User data (`data/users.json`, `data/projects.json`) is excluded from updates via
 
 ## License
 
-Copyright (c) 2026 Florian Hesse. All rights reserved.
+Free to use for personal and commercial projects. The copyright footer must not be modified or removed.
 
 ---
 
@@ -234,7 +234,7 @@ Benutzerdaten (`data/users.json`, `data/projects.json`) werden bei Updates nicht
 
 ### Lizenz
 
-Copyright (c) 2026 Florian Hesse. Alle Rechte vorbehalten.
+Frei verwendbar für persönliche und kommerzielle Projekte. Der Copyright-Footer darf nicht verändert oder entfernt werden.
 
 ---
 
