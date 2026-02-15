@@ -1,3 +1,10 @@
+<?php
+// Redirect to installer if not yet installed
+if (!file_exists(__DIR__ . '/data/users.json') && file_exists(__DIR__ . '/install.php')) {
+    header('Location: install.php');
+    exit;
+}
+?>
 <!--
   TaskFlow v1.1
   Copyright (c) 2026 Florian Hesse
