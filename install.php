@@ -9,7 +9,7 @@
  */
 
 $repoUrl = 'https://github.com/floppy007/taskflow';
-$branch = 'master';
+$branch = 'main';
 $error = '';
 $success = false;
 $step = 'setup'; // setup, installing, done
@@ -55,7 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $zip->extractTo($tmpDir);
                 $zip->close();
 
-                // Find extracted folder (usually "taskflow-master")
+                // Find extracted folder (usually "taskflow-main")
                 $folders = glob($tmpDir . '/*', GLOB_ONLYDIR);
                 $srcDir = $folders[0] ?? $tmpDir;
 
