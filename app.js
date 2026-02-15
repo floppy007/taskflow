@@ -1156,26 +1156,38 @@ function getDueDateInfo(dueDate) {
   return { class: 'later', label: due.toLocaleDateString(currentLang === 'de' ? 'de-DE' : 'en-US') };
 }
 
-// Dark Mode
+// Dark Mode (auto-detect system, user can override via topbar)
 function toggleDarkMode() {
   const isDark = document.body.getAttribute('data-dark') === 'true';
   const newVal = !isDark;
   document.body.setAttribute('data-dark', newVal);
-  localStorage.setItem('taskflow_dark', newVal);
+  localStorage.setItem('taskflow_dark', newVal ? 'true' : 'false');
   updateDarkModeUI(newVal);
 }
 
 function loadDarkMode() {
-  const savedDark = localStorage.getItem('taskflow_dark') === 'true';
-  document.body.setAttribute('data-dark', savedDark);
-  updateDarkModeUI(savedDark);
+  const saved = localStorage.getItem('taskflow_dark');
+  let isDark;
+  if (saved !== null) {
+    isDark = saved === 'true';
+  } else {
+    isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  }
+  document.body.setAttribute('data-dark', isDark);
+  updateDarkModeUI(isDark);
+
+  // Listen for system theme changes (only if user hasn't overridden)
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+    if (localStorage.getItem('taskflow_dark') === null) {
+      document.body.setAttribute('data-dark', e.matches);
+      updateDarkModeUI(e.matches);
+    }
+  });
 }
 
 function updateDarkModeUI(isDark) {
   const toggle = document.getElementById('darkModeToggle');
   if (toggle) toggle.textContent = isDark ? '☀️' : '🌙';
-  const checkbox = document.getElementById('darkModeCheckbox');
-  if (checkbox) checkbox.checked = isDark;
 }
 
 // Kanban Board
