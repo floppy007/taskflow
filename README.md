@@ -26,6 +26,7 @@
 - In-app update system (git pull)
 - Dynamic animations & smooth transitions
 - Multi-language support (DE/EN)
+- Setup wizard for easy first-time installation
 
 ## Requirements
 
@@ -35,49 +36,50 @@
 
 ## Installation
 
-### Option 1: With Apache/Nginx
+### 1. Download & Deploy
 
-1. Copy the project to your web server directory:
-   ```bash
-   cp -r taskflow /var/www/html/taskflow
-   ```
+Copy or clone the project to your web server directory:
 
-2. Set write permissions for the data folder:
-   ```bash
-   chmod 755 /var/www/html/taskflow/data
-   ```
+```bash
+git clone https://github.com/floppy007/taskflow.git /var/www/html/taskflow
+```
 
-3. Open in your browser:
-   ```
-   http://localhost/taskflow
-   ```
+Set write permissions for the data folder (Linux/Mac):
+```bash
+chmod 755 /var/www/html/taskflow/data
+```
 
-### Option 2: PHP Built-in Server (Development)
+### 2. Run the Setup Wizard
 
-1. Navigate to the project directory:
-   ```bash
-   cd taskflow
-   ```
+Open TaskFlow in your browser:
+```
+http://localhost/taskflow
+```
 
-2. Start the PHP server:
-   ```bash
-   php -S localhost:8000
-   ```
+You will be automatically redirected to the **setup wizard** (`install.php`). Enter your admin account details:
 
-3. Open in your browser:
-   ```
-   http://localhost:8000
-   ```
+- Full name
+- Username
+- Password (+ confirmation)
 
-## Default Login
+Click **"Install TaskFlow"** to complete the setup.
 
-- **Username:** admin
-- **Password:** admin
+> The installer creates the admin user, initializes the data files, and **deletes itself automatically** after successful installation.
+
+### Alternative: PHP Built-in Server (Development)
+
+```bash
+cd taskflow
+php -S localhost:8000
+```
+
+Then open `http://localhost:8000` in your browser.
 
 ## File Structure
 
 ```
 taskflow/
+├── install.php        # Setup wizard (auto-deletes after install)
 ├── index.php          # Main application (HTML/CSS)
 ├── app.js             # Frontend logic (JavaScript)
 ├── api.php            # Backend API
@@ -86,7 +88,8 @@ taskflow/
 ├── lang/
 │   ├── de.json        # German translations
 │   └── en.json        # English translations
-├── data/              # JSON data storage
+├── data/              # JSON data storage (created by installer)
+│   ├── .htaccess      # Access protection
 │   ├── users.json     # User data
 │   └── projects.json  # Projects & to-dos
 └── README.md
@@ -96,15 +99,15 @@ taskflow/
 
 **IMPORTANT:** For production use:
 
-1. **Change passwords:** Change the default admin password!
+1. **Use HTTPS:** Never run over HTTP in production!
 
-2. **Use HTTPS:** Never run over HTTP in production!
-
-3. **Protect the data folder:**
+2. **Protect the data folder:** The installer creates a `.htaccess` in `/data` automatically. Verify it exists:
    ```apache
-   # .htaccess in /data
+   Order deny,allow
    Deny from all
    ```
+
+3. **Verify installer is removed:** After installation, make sure `install.php` no longer exists. If it does, delete it manually.
 
 4. **Session security:** Adjust session settings in `api.php`:
    ```php
@@ -169,6 +172,7 @@ Free to use for personal and commercial projects. The copyright footer must not 
 - In-App Update-System (git pull)
 - Dynamische Animationen & sanfte Übergänge
 - Mehrsprachig (DE/EN)
+- Setup-Assistent für einfache Erstinstallation
 
 ### Voraussetzungen
 
@@ -178,52 +182,52 @@ Free to use for personal and commercial projects. The copyright footer must not 
 
 ### Installation
 
-#### Variante 1: Mit Apache/Nginx
+#### 1. Herunterladen & Bereitstellen
 
-1. Projekt in den Webserver-Ordner kopieren:
-   ```bash
-   cp -r taskflow /var/www/html/taskflow
-   ```
+Projekt auf den Webserver klonen oder kopieren:
 
-2. Schreibrechte für den data-Ordner setzen:
-   ```bash
-   chmod 755 /var/www/html/taskflow/data
-   ```
+```bash
+git clone https://github.com/floppy007/taskflow.git /var/www/html/taskflow
+```
 
-3. Im Browser öffnen:
-   ```
-   http://localhost/taskflow
-   ```
+Schreibrechte für den data-Ordner setzen (Linux/Mac):
+```bash
+chmod 755 /var/www/html/taskflow/data
+```
 
-#### Variante 2: PHP Built-in Server (Entwicklung)
+#### 2. Setup-Assistent ausführen
 
-1. In das Projekt-Verzeichnis wechseln:
-   ```bash
-   cd taskflow
-   ```
+TaskFlow im Browser öffnen:
+```
+http://localhost/taskflow
+```
 
-2. PHP Server starten:
-   ```bash
-   php -S localhost:8000
-   ```
+Du wirst automatisch zum **Setup-Assistenten** (`install.php`) weitergeleitet. Gib deine Admin-Zugangsdaten ein:
 
-3. Im Browser öffnen:
-   ```
-   http://localhost:8000
-   ```
+- Vollständiger Name
+- Benutzername
+- Passwort (+ Bestätigung)
 
-### Standard-Login
+Klicke auf **"Install TaskFlow"** um die Einrichtung abzuschließen.
 
-- **Benutzername:** admin
-- **Passwort:** admin
+> Der Installer erstellt den Admin-Benutzer, initialisiert die Datendateien und **löscht sich automatisch** nach erfolgreicher Installation.
+
+#### Alternative: PHP Built-in Server (Entwicklung)
+
+```bash
+cd taskflow
+php -S localhost:8000
+```
+
+Dann `http://localhost:8000` im Browser öffnen.
 
 ### Sicherheit
 
 **WICHTIG:** Für den Produktiv-Einsatz:
 
-1. **Passwörter ändern:** Standard-Admin-Passwort sofort ändern!
-2. **HTTPS verwenden:** Niemals über HTTP in Produktion betreiben!
-3. **data-Ordner schützen:** Die `.htaccess` im `/data`-Ordner ist bereits enthalten.
+1. **HTTPS verwenden:** Niemals über HTTP in Produktion betreiben!
+2. **data-Ordner schützen:** Der Installer erstellt automatisch eine `.htaccess` im `/data`-Ordner. Prüfe, ob sie vorhanden ist.
+3. **Installer gelöscht?** Nach der Installation sicherstellen, dass `install.php` nicht mehr existiert. Falls doch, manuell löschen.
 4. **Session-Sicherheit:** In `api.php` die Session-Einstellungen anpassen.
 
 ### Updates
