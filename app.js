@@ -5,6 +5,44 @@
  * https://comnic-it.de
  * Alle Rechte vorbehalten.
  */
+// Toast Notification System
+function showToast(message, type = 'info', title = '') {
+  const container = document.getElementById('toastContainer');
+  if (!container) return;
+
+  const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
+  const titles = { success: t('toast.success') || 'Erfolg', error: t('toast.error') || 'Fehler', warning: t('toast.warning') || 'Warnung', info: 'Info' };
+
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.innerHTML = `
+    <span class="toast-icon">${icons[type] || icons.info}</span>
+    <div class="toast-body">
+      <div class="toast-title">${escapeHtml(title || titles[type])}</div>
+      <div class="toast-msg">${escapeHtml(message)}</div>
+    </div>
+    <button class="toast-copy" onclick="event.stopPropagation();copyToast(this,'${escapeHtml(message).replace(/'/g, "\\'")}')">Copy</button>
+  `;
+  toast.onclick = () => dismissToast(toast);
+  container.appendChild(toast);
+
+  setTimeout(() => dismissToast(toast), 5000);
+}
+
+function dismissToast(toast) {
+  if (toast.classList.contains('toast-out')) return;
+  toast.classList.add('toast-out');
+  setTimeout(() => toast.remove(), 250);
+}
+
+function copyToast(btn, text) {
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = '✓';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1500);
+  });
+}
+
 // Data Structure
 let users = [];
 let projects = [];
@@ -255,7 +293,7 @@ async function login() {
   const password = document.getElementById('loginPassword').value;
 
   if (!username || !password) {
-    alert(t('login.alert_fields'));
+    showToast(t('login.alert_fields'), 'warning');
     return;
   }
 
@@ -266,7 +304,7 @@ async function login() {
     await loadProjectsFromServer();
     showApp();
   } else {
-    alert(result.message || t('login.alert_failed'));
+    showToast(result.message || t('login.alert_failed'), 'error');
   }
 }
 
@@ -276,17 +314,17 @@ async function register() {
   const password = document.getElementById('regPassword').value;
 
   if (!name || !username || !password) {
-    alert(t('register.alert_fields'));
+    showToast(t('register.alert_fields'), 'warning');
     return;
   }
 
   const result = await apiCall('register', {name, username, password});
 
   if (result.success) {
-    alert(t('register.alert_success'));
+    showToast(t('register.alert_success'), 'success');
     showLogin();
   } else {
-    alert(result.message || t('register.alert_failed'));
+    showToast(result.message || t('register.alert_failed'), 'error');
   }
 }
 
@@ -302,7 +340,7 @@ async function logout() {
   }
 }
 
-function showApp() {
+async function showApp() {
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('registerScreen').style.display = 'none';
   document.getElementById('appContainer').classList.add('active');
@@ -310,7 +348,24 @@ function showApp() {
   document.getElementById('userName').textContent = currentUser.name;
   document.getElementById('userAvatar').textContent = currentUser.name.charAt(0).toUpperCase();
 
+  // Load users for member avatar rendering
+  const usersResult = await apiCall('getUsers');
+  if (usersResult.success) users = usersResult.data;
+
+  // Show/hide admin-only nav items
+  applyAdminUI();
+
   renderDashboard();
+}
+
+function applyAdminUI() {
+  const iAmAdmin = currentUser.role === 'admin';
+  // Users nav item (index 2 in nav-items)
+  const navItems = document.querySelectorAll('.nav-item');
+  if (navItems[2]) navItems[2].style.display = iAmAdmin ? '' : 'none';
+  // User role display in sidebar
+  const roleEl = document.querySelector('.user-role');
+  if (roleEl) roleEl.textContent = iAmAdmin ? t('users.role_admin') : t('users.role_user');
 }
 
 // Project Management
@@ -355,7 +410,7 @@ async function createProject() {
   const desc = document.getElementById('newProjectDesc').value.trim();
 
   if (!name) {
-    alert(t('projects.name_required'));
+    showToast(t('projects.name_required'), 'warning');
     return;
   }
 
@@ -370,7 +425,7 @@ async function createProject() {
     renderDashboard();
     renderProjects();
   } else {
-    alert(result.message || t('projects.create_error'));
+    showToast(result.message || t('projects.create_error'), 'error');
   }
 }
 
@@ -390,9 +445,14 @@ function showProjects() {
 }
 
 async function showUsers() {
+  if (currentUser.role !== 'admin') return;
   setActiveNav(2);
   hideAllViews();
   showViewAnimated('usersView');
+
+  // Show/hide create user button based on admin role
+  const createBtn = document.querySelector('#usersView .btn-primary[onclick="openCreateUserForm()"]');
+  if (createBtn) createBtn.style.display = currentUser.role === 'admin' ? '' : 'none';
 
   const result = await apiCall('getUsers');
   if (result.success) {
@@ -504,6 +564,7 @@ function renderDashboard() {
             <span class="project-stat-label">${escapeHtml(t('projects.total'))}</span>
           </div>
         </div>
+        ${renderMemberAvatars(p.members)}
       </div>
     `;
   }).join('');
@@ -561,6 +622,7 @@ function renderProjects() {
             <span class="project-stat-label">${escapeHtml(t('projects.total'))}</span>
           </div>
         </div>
+        ${renderMemberAvatars(p.members)}
       </div>
     `;
   }).join('');
@@ -568,19 +630,54 @@ function renderProjects() {
 
 function renderUsers() {
   const container = document.getElementById('usersList');
-  container.innerHTML = users.map(u => `
-    <div style="display:flex;align-items:center;gap:16px;padding:16px;border-bottom:1px solid var(--border)">
-      <div class="user-avatar">${u.name.charAt(0).toUpperCase()}</div>
-      <div style="flex:1">
-        <div style="font-weight:600;margin-bottom:4px">${escapeHtml(u.name)}</div>
-        <div style="font-size:14px;color:var(--text-muted)">@${escapeHtml(u.username)}</div>
+  const iAmAdmin = currentUser.role === 'admin';
+
+  container.innerHTML = users.map(u => {
+    const roleLabel = u.role === 'admin' ? t('users.role_admin') : t('users.role_user');
+    const roleBadgeClass = u.role === 'admin' ? 'owner' : 'viewer';
+
+    let roleHtml = `<span class="member-role-badge ${roleBadgeClass}">${escapeHtml(roleLabel)}</span>`;
+    if (iAmAdmin && u.id !== currentUser.id) {
+      roleHtml = `<div class="role-toggle">
+        <button class="role-toggle-btn ${u.role === 'admin' ? 'active' : ''}" onclick="changeUserRole(${u.id},'admin')">${escapeHtml(t('users.role_admin'))}</button>
+        <button class="role-toggle-btn ${u.role === 'user' ? 'active' : ''}" onclick="changeUserRole(${u.id},'user')">${escapeHtml(t('users.role_user'))}</button>
+      </div>`;
+    }
+
+    return `
+      <div style="display:flex;align-items:center;gap:16px;padding:16px;border-bottom:1px solid var(--border)">
+        <div class="user-avatar">${u.name.charAt(0).toUpperCase()}</div>
+        <div style="flex:1">
+          <div style="font-weight:600;margin-bottom:4px">${escapeHtml(u.name)}</div>
+          <div style="font-size:14px;color:var(--text-muted)">@${escapeHtml(u.username)}</div>
+        </div>
+        <div>${roleHtml}</div>
+        <div style="font-size:12px;color:var(--text-muted)">
+          ${escapeHtml(t('users.created'))} ${new Date(u.createdAt).toLocaleDateString(currentLang === 'de' ? 'de-DE' : 'en-US')}
+        </div>
+        ${iAmAdmin && u.id !== currentUser.id ? `<button class="btn btn-danger btn-sm" onclick="deleteUser(${u.id})" title="${escapeHtml(t('users.delete_btn'))}">🗑️</button>` : ''}
       </div>
-      <div style="font-size:12px;color:var(--text-muted)">
-        ${escapeHtml(t('users.created'))} ${new Date(u.createdAt).toLocaleDateString(currentLang === 'de' ? 'de-DE' : 'en-US')}
-      </div>
-      ${u.id !== currentUser.id ? `<button class="btn btn-danger btn-sm" onclick="deleteUser(${u.id})" title="${escapeHtml(t('users.delete_btn'))}">🗑️</button>` : ''}
-    </div>
-  `).join('');
+    `;
+  }).join('');
+}
+
+async function changeUserRole(userId, newRole) {
+  const result = await apiCall('updateUserRole', { id: userId, role: newRole });
+  if (result.success) {
+    const usersResult = await apiCall('getUsers');
+    if (usersResult.success) {
+      users = usersResult.data;
+      renderUsers();
+    }
+  } else {
+    showToast(result.message || t('users.role_error'), 'error');
+    // Revert UI
+    const usersResult = await apiCall('getUsers');
+    if (usersResult.success) {
+      users = usersResult.data;
+      renderUsers();
+    }
+  }
 }
 
 async function deleteProject(id) {
@@ -591,13 +688,13 @@ async function deleteProject(id) {
       renderDashboard();
       renderProjects();
     } else {
-      alert(result.message || t('projects.delete_error'));
+      showToast(result.message || t('projects.delete_error'), 'error');
     }
   }
 }
 
 // Project Detail View Functions
-function openProjectDetail(projectId) {
+async function openProjectDetail(projectId) {
   currentProjectId = projectId;
   const project = projects.find(p => p.id === projectId);
   if (!project) return;
@@ -620,8 +717,14 @@ function openProjectDetail(projectId) {
   if (listBtn) { listBtn.style.background = 'var(--card)'; listBtn.style.boxShadow = 'var(--shadow-sm)'; listBtn.classList.remove('btn-ghost'); }
   if (kanbanBtn) { kanbanBtn.style.background = 'transparent'; kanbanBtn.style.boxShadow = 'none'; kanbanBtn.classList.add('btn-ghost'); }
 
+  // Load users for member rendering
+  const usersResult = await apiCall('getUsers');
+  if (usersResult.success) users = usersResult.data;
+
   renderProjectStats();
   renderProjectTodos();
+  renderMembers();
+  applyPermissionUI();
 }
 
 function backToProjects() {
@@ -644,7 +747,7 @@ function editProject() {
 
 async function saveEditProject() {
   const name = document.getElementById('editProjectName').value.trim();
-  if (!name) { alert(t('projects.name_required')); return; }
+  if (!name) { showToast(t('projects.name_required'), 'warning'); return; }
 
   const result = await apiCall('updateProject', {
     id: currentProjectId,
@@ -662,7 +765,7 @@ async function saveEditProject() {
     renderDashboard();
     renderProjects();
   } else {
-    alert(result.message || t('projects.edit_error'));
+    showToast(result.message || t('projects.edit_error'), 'error');
   }
 }
 
@@ -675,7 +778,7 @@ async function deleteCurrentProject() {
     backToProjects();
     renderDashboard();
   } else {
-    alert(result.message || t('projects.delete_error'));
+    showToast(result.message || t('projects.delete_error'), 'error');
   }
 }
 
@@ -723,7 +826,7 @@ async function addTodoToProject() {
 
   const text = document.getElementById('newTodoText').value.trim();
   if (!text) {
-    alert(t('todos.alert_required'));
+    showToast(t('todos.alert_required'), 'warning');
     return;
   }
 
@@ -751,7 +854,7 @@ async function addTodoToProject() {
     renderProjectTodos();
     renderDashboard();
   } else {
-    alert(result.message || t('todos.alert_add_error'));
+    showToast(result.message || t('todos.alert_add_error'), 'error');
   }
 }
 
@@ -829,6 +932,9 @@ function renderProjectTodos() {
     high: t('todos.priority_high')
   };
 
+  const myRole = getCurrentProjectRole();
+  const canEdit = myRole === 'owner' || myRole === 'editor';
+
   let html = '';
 
   Object.keys(grouped).forEach(category => {
@@ -842,9 +948,9 @@ function renderProjectTodos() {
 
     grouped[category].forEach(todo => {
       html += `
-        <div class="todo-item ${todo.done ? 'done' : ''}" draggable="true" data-todo-id="${todo.id}" ondragstart="todoDragStart(event)" ondragover="todoDragOver(event)" ondrop="todoDrop(event)" ondragend="todoDragEnd(event)">
-          <div class="todo-drag-handle" title="Drag to reorder">⋮⋮</div>
-          <div class="todo-checkbox ${todo.done ? 'checked' : ''}" onclick="toggleTodo(${todo.id})">
+        <div class="todo-item ${todo.done ? 'done' : ''}" ${canEdit ? `draggable="true" data-todo-id="${todo.id}" ondragstart="todoDragStart(event)" ondragover="todoDragOver(event)" ondrop="todoDrop(event)" ondragend="todoDragEnd(event)"` : `data-todo-id="${todo.id}"`}>
+          ${canEdit ? '<div class="todo-drag-handle" title="Drag to reorder">⋮⋮</div>' : ''}
+          <div class="todo-checkbox ${todo.done ? 'checked' : ''}" ${canEdit ? `onclick="toggleTodo(${todo.id})"` : ''} ${!canEdit ? 'style="cursor:default"' : ''}>
             ${todo.done ? '✓' : ''}
           </div>
           <div class="todo-content">
@@ -861,11 +967,11 @@ function renderProjectTodos() {
               ${todo.done && todo.closedBy ? `<span style="margin-left:8px">${escapeHtml(t('todos.closed_by'))} @${escapeHtml(todo.closedBy)}${todo.closedAt ? ' (' + new Date(todo.closedAt).toLocaleDateString(currentLang === 'de' ? 'de-DE' : 'en-US') + ')' : ''}</span>` : ''}
             </div>
             ${todo.note ? `<div class="todo-note">${escapeHtml(todo.note)}</div>` : ''}
-            <div class="todo-actions">
+            ${canEdit ? `<div class="todo-actions">
               <button class="todo-action-btn" onclick="editTodo(${todo.id})">✏️ ${escapeHtml(t('todos.edit_btn'))}</button>
               <button class="todo-action-btn" onclick="archiveTodo(${todo.id})">${todo.archived ? '📂 ' + escapeHtml(t('todos.restore_btn')) : '📦 ' + escapeHtml(t('todos.archive_btn'))}</button>
               <button class="todo-action-btn danger" onclick="deleteTodo(${todo.id})">🗑️ ${escapeHtml(t('todos.delete_btn'))}</button>
-            </div>
+            </div>` : ''}
           </div>
         </div>
       `;
@@ -919,7 +1025,7 @@ function editTodo(todoId) {
 async function saveEditTodo() {
   const todoId = parseInt(document.getElementById('editTodoId').value);
   const text = document.getElementById('editTodoText').value.trim();
-  if (!text) { alert(t('todos.alert_required')); return; }
+  if (!text) { showToast(t('todos.alert_required'), 'warning'); return; }
 
   const result = await apiCall('updateTodo', {
     projectId: currentProjectId,
@@ -993,9 +1099,9 @@ async function exportData() {
     a.click();
     URL.revokeObjectURL(url);
 
-    alert(t('data.export_success'));
+    showToast(t('data.export_success'), 'success');
   } else {
-    alert(result.message || t('data.export_failed'));
+    showToast(result.message || t('data.export_failed'), 'error');
   }
 }
 
@@ -1009,7 +1115,7 @@ async function importData(event) {
       const data = JSON.parse(e.target.result);
 
       if (!data.users || !data.projects) {
-        alert(t('data.import_invalid'));
+        showToast(t('data.import_invalid'), 'warning');
         return;
       }
 
@@ -1018,13 +1124,13 @@ async function importData(event) {
         if (result.success) {
           await loadProjectsFromServer();
           renderDashboard();
-          alert(t('data.import_success'));
+          showToast(t('data.import_success'), 'success');
         } else {
-          alert(result.message || t('data.import_failed'));
+          showToast(result.message || t('data.import_failed'), 'error');
         }
       }
     } catch (error) {
-      alert(t('data.import_read_error') + error.message);
+      showToast(t('data.import_read_error') + error.message, 'error');
     }
   };
   reader.readAsText(file);
@@ -1037,23 +1143,23 @@ async function changePassword() {
   const confirmPw = document.getElementById('confirmPassword').value;
 
   if (!currentPw || !newPw || !confirmPw) {
-    alert(t('settings.password_fields_required'));
+    showToast(t('settings.password_fields_required'), 'warning');
     return;
   }
 
   if (newPw !== confirmPw) {
-    alert(t('settings.password_mismatch'));
+    showToast(t('settings.password_mismatch'), 'warning');
     return;
   }
 
   const result = await apiCall('changePassword', {currentPassword: currentPw, newPassword: newPw});
   if (result.success) {
-    alert(t('settings.password_success'));
+    showToast(t('settings.password_success'), 'success');
     document.getElementById('currentPassword').value = '';
     document.getElementById('newPassword').value = '';
     document.getElementById('confirmPassword').value = '';
   } else {
-    alert(result.message || t('settings.password_error'));
+    showToast(result.message || t('settings.password_error'), 'error');
   }
 }
 
@@ -1067,19 +1173,21 @@ function closeCreateUserForm() {
   document.getElementById('newUserName').value = '';
   document.getElementById('newUserUsername').value = '';
   document.getElementById('newUserPassword').value = '';
+  document.getElementById('newUserRole').value = 'user';
 }
 
 async function createUser() {
   const name = document.getElementById('newUserName').value;
   const username = document.getElementById('newUserUsername').value;
   const password = document.getElementById('newUserPassword').value;
+  const role = document.getElementById('newUserRole').value;
 
   if (!name || !username || !password) {
-    alert(t('register.alert_fields'));
+    showToast(t('register.alert_fields'), 'warning');
     return;
   }
 
-  const result = await apiCall('createUser', {name, username, password});
+  const result = await apiCall('createUser', {name, username, password, role});
   if (result.success) {
     closeCreateUserForm();
     const usersResult = await apiCall('getUsers');
@@ -1088,7 +1196,7 @@ async function createUser() {
       renderUsers();
     }
   } else {
-    alert(result.message || t('users.create_error'));
+    showToast(result.message || t('users.create_error'), 'error');
   }
 }
 
@@ -1104,7 +1212,7 @@ async function deleteUser(id) {
       renderUsers();
     }
   } else {
-    alert(result.message || t('users.delete_error'));
+    showToast(result.message || t('users.delete_error'), 'error');
   }
 }
 
@@ -1114,13 +1222,13 @@ function uploadLogo(event) {
   if (!file) return;
 
   if (!file.type.match(/^image\/(png|jpeg|svg\+xml)$/)) {
-    alert(t('settings.logo_invalid'));
+    showToast(t('settings.logo_invalid'), 'warning');
     event.target.value = '';
     return;
   }
 
   if (file.size > 2 * 1024 * 1024) {
-    alert(t('settings.logo_too_big'));
+    showToast(t('settings.logo_too_big'), 'warning');
     event.target.value = '';
     return;
   }
@@ -1491,6 +1599,192 @@ async function todoDrop(e) {
     await loadProjectsFromServer();
     renderProjectTodos();
   }
+}
+
+// ========== Member Helpers ==========
+
+function renderMemberAvatars(members) {
+  if (!members || members.length === 0) return '';
+  const colors = ['#667eea','#ec4899','#10b981','#f59e0b','#8b5cf6','#06b6d4','#ef4444','#84cc16'];
+  const maxShow = 4;
+  const shown = members.slice(0, maxShow);
+  const extra = members.length - maxShow;
+
+  let html = '<div class="project-members-row">';
+  shown.forEach((m, i) => {
+    const user = users.find(u => u.id === m.userId);
+    const initial = user ? user.name.charAt(0).toUpperCase() : '?';
+    html += `<div class="project-member-mini" style="background:${colors[i % colors.length]}" title="${escapeHtml(user ? user.name : 'User #' + m.userId)}">${initial}</div>`;
+  });
+  if (extra > 0) {
+    html += `<span class="project-members-count">+${extra}</span>`;
+  }
+  html += '</div>';
+  return html;
+}
+
+// ========== Member Management ==========
+
+function getCurrentProjectRole() {
+  const project = projects.find(p => p.id === currentProjectId);
+  if (!project || !project.members) return null;
+  const member = project.members.find(m => m.userId === currentUser.id);
+  return member ? member.role : null;
+}
+
+function renderMembers() {
+  const project = projects.find(p => p.id === currentProjectId);
+  if (!project) return;
+
+  const membersCard = document.getElementById('membersCard');
+  const addBtn = document.getElementById('addMemberBtn');
+  const container = document.getElementById('membersList');
+  const myRole = getCurrentProjectRole();
+
+  // Only show add button for owners
+  if (addBtn) addBtn.style.display = myRole === 'owner' ? '' : 'none';
+
+  const members = project.members || [];
+  if (members.length === 0) {
+    container.innerHTML = `<div style="padding:16px;color:var(--text-muted);text-align:center">${escapeHtml(t('members.no_users'))}</div>`;
+    return;
+  }
+
+  const roleLabels = {
+    owner: t('members.role_owner'),
+    editor: t('members.role_editor'),
+    viewer: t('members.role_viewer')
+  };
+
+  const colors = ['#667eea','#ec4899','#10b981','#f59e0b','#8b5cf6','#06b6d4','#ef4444','#84cc16'];
+
+  container.innerHTML = members.map((m, idx) => {
+    const user = users.find(u => u.id === m.userId);
+    const name = user ? user.name : `User #${m.userId}`;
+    const initial = name.charAt(0).toUpperCase();
+    const color = colors[idx % colors.length];
+    const isMe = m.userId === currentUser.id;
+    const iAmOwner = myRole === 'owner';
+
+    let actionsHtml = '';
+    if (iAmOwner && m.role !== 'owner') {
+      actionsHtml = `
+        <select class="member-role-select" onchange="changeMemberRole(${m.userId}, this.value)">
+          <option value="editor" ${m.role === 'editor' ? 'selected' : ''}>${escapeHtml(roleLabels.editor)}</option>
+          <option value="viewer" ${m.role === 'viewer' ? 'selected' : ''}>${escapeHtml(roleLabels.viewer)}</option>
+        </select>
+        <button class="todo-action-btn danger" onclick="removeMember(${m.userId})" title="${escapeHtml(t('members.remove_btn'))}">✕</button>
+      `;
+    }
+
+    return `
+      <div class="member-item">
+        <div class="member-avatar" style="background:${color}">${initial}</div>
+        <div class="member-info">
+          <span class="member-name">${escapeHtml(name)} ${isMe ? '<span style="color:var(--text-muted);font-weight:400">' + escapeHtml(t('members.you')) + '</span>' : ''}</span>
+          <span class="member-role-badge ${m.role}">${escapeHtml(roleLabels[m.role] || m.role)}</span>
+        </div>
+        <div class="member-actions">${actionsHtml}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function openAddMemberModal() {
+  // Load all users to populate the dropdown
+  const result = await apiCall('getUsers');
+  if (!result.success) return;
+
+  const allUsers = result.data || [];
+  const project = projects.find(p => p.id === currentProjectId);
+  if (!project) return;
+
+  const existingIds = (project.members || []).map(m => m.userId);
+  const available = allUsers.filter(u => !existingIds.includes(u.id));
+
+  const select = document.getElementById('addMemberUserId');
+  if (available.length === 0) {
+    select.innerHTML = `<option value="">${escapeHtml(t('members.no_users'))}</option>`;
+  } else {
+    select.innerHTML = available.map(u =>
+      `<option value="${u.id}">${escapeHtml(u.name)} (@${escapeHtml(u.username)})</option>`
+    ).join('');
+  }
+
+  document.getElementById('addMemberRole').value = 'editor';
+  document.getElementById('addMemberModal').classList.add('active');
+}
+
+async function addMember() {
+  const userId = parseInt(document.getElementById('addMemberUserId').value);
+  const role = document.getElementById('addMemberRole').value;
+
+  if (!userId) return;
+
+  const result = await apiCall('addMember', {
+    projectId: currentProjectId,
+    userId,
+    role
+  });
+
+  if (result.success) {
+    closeModal('addMemberModal');
+    await loadProjectsFromServer();
+    // Reload users list for rendering names
+    const usersResult = await apiCall('getUsers');
+    if (usersResult.success) users = usersResult.data;
+    renderMembers();
+  } else {
+    showToast(result.message || t('members.add_error'), 'error');
+  }
+}
+
+async function removeMember(userId) {
+  if (!confirm(t('members.remove_confirm'))) return;
+
+  const result = await apiCall('removeMember', {
+    projectId: currentProjectId,
+    userId
+  });
+
+  if (result.success) {
+    await loadProjectsFromServer();
+    renderMembers();
+  } else {
+    showToast(result.message || t('members.remove_error'), 'error');
+  }
+}
+
+async function changeMemberRole(userId, newRole) {
+  const result = await apiCall('updateMemberRole', {
+    projectId: currentProjectId,
+    userId,
+    role: newRole
+  });
+
+  if (result.success) {
+    await loadProjectsFromServer();
+    renderMembers();
+  } else {
+    showToast(result.message || t('members.role_error'), 'error');
+  }
+}
+
+// Apply permission-based UI visibility
+function applyPermissionUI() {
+  const role = getCurrentProjectRole();
+  const isOwner = role === 'owner';
+  const canEdit = role === 'owner' || role === 'editor';
+
+  // Edit/Delete project buttons
+  const editBtn = document.querySelector('#projectDetailView .btn-ghost[onclick="editProject()"]');
+  const deleteBtn = document.querySelector('#projectDetailView .btn-danger[onclick="deleteCurrentProject()"]');
+  if (editBtn) editBtn.style.display = isOwner ? '' : 'none';
+  if (deleteBtn) deleteBtn.style.display = isOwner ? '' : 'none';
+
+  // Add todo button & form
+  const todoToggle = document.getElementById('newTodoToggleBtn');
+  if (todoToggle) todoToggle.style.display = canEdit ? '' : 'none';
 }
 
 // Start app

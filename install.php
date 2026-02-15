@@ -137,6 +137,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'username' => $username,
                     'password' => password_hash($password, PASSWORD_DEFAULT),
                     'name' => $name,
+                    'role' => 'admin',
                     'createdAt' => date('c')
                 ]];
 

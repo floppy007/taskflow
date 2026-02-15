@@ -67,6 +67,18 @@ $messages = [
         'update_no_git' => 'Kein Git-Repository vorhanden',
         'update_success' => 'Update erfolgreich installiert',
         'update_failed' => 'Update fehlgeschlagen',
+        'member_added' => 'Mitglied hinzugefügt',
+        'member_removed' => 'Mitglied entfernt',
+        'member_updated' => 'Rolle aktualisiert',
+        'member_exists' => 'Benutzer ist bereits Mitglied',
+        'member_not_found' => 'Mitglied nicht gefunden',
+        'no_permission' => 'Keine Berechtigung',
+        'cannot_remove_owner' => 'Der Eigentümer kann nicht entfernt werden',
+        'cannot_change_owner' => 'Die Eigentümer-Rolle kann nicht geändert werden',
+        'admin_required' => 'Nur Administratoren können diese Aktion ausführen',
+        'role_updated' => 'Rolle aktualisiert',
+        'cannot_demote_self' => 'Du kannst dich nicht selbst herabstufen',
+        'last_admin' => 'Der letzte Administrator kann nicht herabgestuft werden',
     ],
     'en' => [
         'login_required' => 'Username and password required',
@@ -103,6 +115,18 @@ $messages = [
         'update_no_git' => 'No git repository found',
         'update_success' => 'Update installed successfully',
         'update_failed' => 'Update failed',
+        'member_added' => 'Member added',
+        'member_removed' => 'Member removed',
+        'member_updated' => 'Role updated',
+        'member_exists' => 'User is already a member',
+        'member_not_found' => 'Member not found',
+        'no_permission' => 'No permission',
+        'cannot_remove_owner' => 'The owner cannot be removed',
+        'cannot_change_owner' => 'The owner role cannot be changed',
+        'admin_required' => 'Only administrators can perform this action',
+        'role_updated' => 'Role updated',
+        'cannot_demote_self' => 'You cannot demote yourself',
+        'last_admin' => 'The last administrator cannot be demoted',
     ],
 ];
 
@@ -132,6 +156,18 @@ if (!file_exists($projectsFile)) {
     file_put_contents($projectsFile, json_encode([], JSON_PRETTY_PRINT));
 }
 
+// Check write permissions on data files - try to fix automatically
+foreach ([$usersFile, $projectsFile, $activityFile] as $f) {
+    if (file_exists($f) && !is_writable($f)) {
+        @chmod($f, 0666);
+        if (!is_writable($f)) {
+            $owner = function_exists('posix_getpwuid') ? (posix_getpwuid(fileowner($f))['name'] ?? '?') : fileowner($f);
+            $webUser = function_exists('posix_getpwuid') ? (posix_getpwuid(posix_geteuid())['name'] ?? '?') : get_current_user();
+            response(false, null, "Permission denied: " . basename($f) . " belongs to '$owner', web server runs as '$webUser'. Fix: chown www-data:www-data " . $dataDir . "/*.json");
+        }
+    }
+}
+
 // Helper functions
 function loadUsers() {
     global $usersFile;
@@ -141,6 +177,31 @@ function loadUsers() {
 function saveUsers($users) {
     global $usersFile;
     file_put_contents($usersFile, json_encode($users, JSON_PRETTY_PRINT));
+}
+
+// Migrate users: ensure all users have a role field
+function migrateUserRoles(&$users) {
+    $changed = false;
+    foreach ($users as $i => &$u) {
+        if (!isset($u['role'])) {
+            // First user becomes admin, rest become user
+            $u['role'] = ($i === 0) ? 'admin' : 'user';
+            $changed = true;
+        }
+    }
+    return $changed;
+}
+
+function isAdmin() {
+    if (!isset($_SESSION['user']['id'])) return false;
+    // Always check from file to avoid stale session
+    $users = loadUsers();
+    foreach ($users as $u) {
+        if ($u['id'] == $_SESSION['user']['id']) {
+            return ($u['role'] ?? 'user') === 'admin';
+        }
+    }
+    return false;
 }
 
 function loadProjects() {
@@ -179,6 +240,50 @@ function logActivity($action, $details = []) {
     saveActivity($activity);
 }
 
+// Permission helpers
+function getProjectRole($project, $userId) {
+    if (!isset($project['members']) || !is_array($project['members'])) {
+        // Legacy: project without members array - creator is owner
+        return ($project['createdBy'] ?? 0) == $userId ? 'owner' : null;
+    }
+    foreach ($project['members'] as $m) {
+        if ($m['userId'] == $userId) return $m['role'];
+    }
+    return null;
+}
+
+function canManageMembers($project, $userId) {
+    return getProjectRole($project, $userId) === 'owner';
+}
+
+function canEditProject($project, $userId) {
+    return getProjectRole($project, $userId) === 'owner';
+}
+
+function canEditTodos($project, $userId) {
+    $role = getProjectRole($project, $userId);
+    return in_array($role, ['owner', 'editor']);
+}
+
+function canViewProject($project, $userId) {
+    return getProjectRole($project, $userId) !== null;
+}
+
+// Migrate projects: ensure all projects have a members array
+function migrateProjectMembers(&$projects) {
+    $changed = false;
+    foreach ($projects as &$p) {
+        if (!isset($p['members']) || !is_array($p['members'])) {
+            $p['members'] = [];
+            if (!empty($p['createdBy'])) {
+                $p['members'][] = ['userId' => (int)$p['createdBy'], 'role' => 'owner'];
+            }
+            $changed = true;
+        }
+    }
+    return $changed;
+}
+
 function response($success, $data = null, $message = '') {
     echo json_encode([
         'success' => $success,
@@ -204,6 +309,9 @@ switch ($action) {
         }
 
         $users = loadUsers();
+        if (migrateUserRoles($users)) {
+            saveUsers($users);
+        }
         $user = null;
 
         foreach ($users as $u) {
@@ -247,6 +355,7 @@ switch ($action) {
             'username' => $username,
             'password' => password_hash($password, PASSWORD_DEFAULT),
             'name' => $name,
+            'role' => 'user',
             'createdAt' => date('c')
         ];
 
@@ -264,6 +373,17 @@ switch ($action) {
 
     case 'getSession':
         if (isset($_SESSION['user'])) {
+            // Refresh role from file in case it was changed
+            $users = loadUsers();
+            if (migrateUserRoles($users)) {
+                saveUsers($users);
+            }
+            foreach ($users as $u) {
+                if ($u['id'] == $_SESSION['user']['id']) {
+                    $_SESSION['user']['role'] = $u['role'] ?? 'user';
+                    break;
+                }
+            }
             response(true, $_SESSION['user']);
         } else {
             response(false, null, msg('not_logged_in'));
@@ -276,6 +396,9 @@ switch ($action) {
         }
 
         $users = loadUsers();
+        if (migrateUserRoles($users)) {
+            saveUsers($users);
+        }
         foreach ($users as &$u) {
             unset($u['password']);
         }
@@ -320,6 +443,9 @@ switch ($action) {
         if (!isset($_SESSION['user'])) {
             response(false, null, msg('not_logged_in'));
         }
+        if (!isAdmin()) {
+            response(false, null, msg('admin_required'));
+        }
 
         $name = $input['name'] ?? '';
         $username = $input['username'] ?? '';
@@ -338,11 +464,15 @@ switch ($action) {
         }
 
         $newId = count($users) > 0 ? max(array_column($users, 'id')) + 1 : 1;
+        $userRole = $input['role'] ?? 'user';
+        if (!in_array($userRole, ['admin', 'user'])) $userRole = 'user';
+
         $newUser = [
             'id' => $newId,
             'username' => $username,
             'password' => password_hash($password, PASSWORD_DEFAULT),
             'name' => $name,
+            'role' => $userRole,
             'createdAt' => date('c')
         ];
 
@@ -356,6 +486,9 @@ switch ($action) {
     case 'deleteUser':
         if (!isset($_SESSION['user'])) {
             response(false, null, msg('not_logged_in'));
+        }
+        if (!isAdmin()) {
+            response(false, null, msg('admin_required'));
         }
 
         $deleteId = $input['id'] ?? 0;
@@ -378,13 +511,76 @@ switch ($action) {
         }
         break;
 
+    case 'updateUserRole':
+        if (!isset($_SESSION['user'])) {
+            response(false, null, msg('not_logged_in'));
+        }
+        if (!isAdmin()) {
+            response(false, null, msg('admin_required'));
+        }
+
+        $targetId = $input['id'] ?? 0;
+        $newRole = $input['role'] ?? '';
+
+        if (!in_array($newRole, ['admin', 'user'])) {
+            response(false, null, msg('invalid_action'));
+        }
+
+        // Cannot demote yourself
+        if ($targetId == $_SESSION['user']['id'] && $newRole !== 'admin') {
+            response(false, null, msg('cannot_demote_self'));
+        }
+
+        $users = loadUsers();
+        migrateUserRoles($users);
+
+        // Check: don't allow removing last admin
+        if ($newRole === 'user') {
+            $adminCount = 0;
+            foreach ($users as $u) {
+                if (($u['role'] ?? 'user') === 'admin') $adminCount++;
+            }
+            $targetCurrentRole = 'user';
+            foreach ($users as $u) {
+                if ($u['id'] == $targetId) { $targetCurrentRole = $u['role'] ?? 'user'; break; }
+            }
+            if ($targetCurrentRole === 'admin' && $adminCount <= 1) {
+                response(false, null, msg('last_admin'));
+            }
+        }
+
+        $found = false;
+        foreach ($users as &$u) {
+            if ($u['id'] == $targetId) {
+                $u['role'] = $newRole;
+                $found = true;
+                break;
+            }
+        }
+
+        if ($found) {
+            saveUsers($users);
+            response(true, null, msg('role_updated'));
+        } else {
+            response(false, null, msg('user_not_found'));
+        }
+        break;
+
     case 'getProjects':
         if (!isset($_SESSION['user'])) {
             response(false, null, msg('not_logged_in'));
         }
 
         $projects = loadProjects();
-        response(true, $projects);
+        if (migrateProjectMembers($projects)) {
+            saveProjects($projects);
+        }
+
+        $userId = $_SESSION['user']['id'];
+        $filtered = array_values(array_filter($projects, function($p) use ($userId) {
+            return canViewProject($p, $userId);
+        }));
+        response(true, $filtered);
         break;
 
     case 'createProject':
@@ -410,6 +606,9 @@ switch ($action) {
             'color' => $color,
             'createdBy' => $_SESSION['user']['id'],
             'createdAt' => date('c'),
+            'members' => [
+                ['userId' => $_SESSION['user']['id'], 'role' => 'owner']
+            ],
             'todos' => []
         ];
 
@@ -431,10 +630,14 @@ switch ($action) {
         $color = $input['color'] ?? null;
 
         $projects = loadProjects();
+        migrateProjectMembers($projects);
         $found = false;
 
         foreach ($projects as &$p) {
             if ($p['id'] == $projectId) {
+                if (!canEditProject($p, $_SESSION['user']['id'])) {
+                    response(false, null, msg('no_permission'));
+                }
                 if (!empty($name)) $p['name'] = $name;
                 $p['desc'] = $desc;
                 if ($color !== null) $p['color'] = $color;
@@ -458,10 +661,17 @@ switch ($action) {
 
         $projectId = $input['id'] ?? 0;
         $projects = loadProjects();
+        migrateProjectMembers($projects);
 
         $deletedName = '';
         foreach ($projects as $p) {
-            if ($p['id'] == $projectId) { $deletedName = $p['name']; break; }
+            if ($p['id'] == $projectId) {
+                if (!canEditProject($p, $_SESSION['user']['id'])) {
+                    response(false, null, msg('no_permission'));
+                }
+                $deletedName = $p['name'];
+                break;
+            }
         }
 
         $filtered = array_filter($projects, function($p) use ($projectId) {
@@ -494,10 +704,14 @@ switch ($action) {
         }
 
         $projects = loadProjects();
+        migrateProjectMembers($projects);
         $found = false;
 
         foreach ($projects as &$p) {
             if ($p['id'] == $projectId) {
+                if (!canEditTodos($p, $_SESSION['user']['id'])) {
+                    response(false, null, msg('no_permission'));
+                }
                 $newTodoId = count($p['todos']) > 0 ? max(array_column($p['todos'], 'id')) + 1 : 1;
 
                 $newTodo = [
@@ -539,10 +753,14 @@ switch ($action) {
         $updates = $input['updates'] ?? [];
 
         $projects = loadProjects();
+        migrateProjectMembers($projects);
         $found = false;
 
         foreach ($projects as &$p) {
             if ($p['id'] == $projectId) {
+                if (!canEditTodos($p, $_SESSION['user']['id'])) {
+                    response(false, null, msg('no_permission'));
+                }
                 foreach ($p['todos'] as &$t) {
                     if ($t['id'] == $todoId) {
                         foreach ($updates as $key => $value) {
@@ -581,7 +799,18 @@ switch ($action) {
         $todoId = $input['todoId'] ?? 0;
 
         $projects = loadProjects();
+        migrateProjectMembers($projects);
         $found = false;
+
+        // Permission check
+        foreach ($projects as $pc) {
+            if ($pc['id'] == $projectId) {
+                if (!canEditTodos($pc, $_SESSION['user']['id'])) {
+                    response(false, null, msg('no_permission'));
+                }
+                break;
+            }
+        }
         $deletedTodoText = '';
 
         foreach ($projects as &$p) {
@@ -754,7 +983,18 @@ switch ($action) {
         $todoIds = $input['todoIds'] ?? [];
 
         $projects = loadProjects();
+        migrateProjectMembers($projects);
         $found = false;
+
+        // Permission check
+        foreach ($projects as $pc) {
+            if ($pc['id'] == $projectId) {
+                if (!canEditTodos($pc, $_SESSION['user']['id'])) {
+                    response(false, null, msg('no_permission'));
+                }
+                break;
+            }
+        }
 
         foreach ($projects as &$p) {
             if ($p['id'] == $projectId) {
@@ -794,6 +1034,160 @@ switch ($action) {
         $count = $input['count'] ?? 20;
         $activity = loadActivity();
         response(true, array_slice($activity, 0, (int)$count));
+        break;
+
+    case 'addMember':
+        if (!isset($_SESSION['user'])) {
+            response(false, null, msg('not_logged_in'));
+        }
+
+        $projectId = $input['projectId'] ?? 0;
+        $targetUserId = $input['userId'] ?? 0;
+        $role = $input['role'] ?? 'viewer';
+
+        if (!in_array($role, ['editor', 'viewer'])) {
+            $role = 'viewer';
+        }
+
+        $projects = loadProjects();
+        migrateProjectMembers($projects);
+        $found = false;
+
+        foreach ($projects as &$p) {
+            if ($p['id'] == $projectId) {
+                if (!canManageMembers($p, $_SESSION['user']['id'])) {
+                    response(false, null, msg('no_permission'));
+                }
+
+                // Check if already a member
+                foreach ($p['members'] as $m) {
+                    if ($m['userId'] == $targetUserId) {
+                        response(false, null, msg('member_exists'));
+                    }
+                }
+
+                // Verify user exists
+                $users = loadUsers();
+                $userExists = false;
+                $targetUserName = '';
+                foreach ($users as $u) {
+                    if ($u['id'] == $targetUserId) {
+                        $userExists = true;
+                        $targetUserName = $u['name'];
+                        break;
+                    }
+                }
+                if (!$userExists) {
+                    response(false, null, msg('user_not_found'));
+                }
+
+                $p['members'][] = ['userId' => (int)$targetUserId, 'role' => $role];
+                $found = true;
+                logActivity('member_added', ['projectId' => $projectId, 'projectName' => $p['name'], 'targetUser' => $targetUserName]);
+                break;
+            }
+        }
+
+        if ($found) {
+            saveProjects($projects);
+            response(true, null, msg('member_added'));
+        } else {
+            response(false, null, msg('project_not_found'));
+        }
+        break;
+
+    case 'removeMember':
+        if (!isset($_SESSION['user'])) {
+            response(false, null, msg('not_logged_in'));
+        }
+
+        $projectId = $input['projectId'] ?? 0;
+        $targetUserId = $input['userId'] ?? 0;
+
+        $projects = loadProjects();
+        migrateProjectMembers($projects);
+        $found = false;
+
+        foreach ($projects as &$p) {
+            if ($p['id'] == $projectId) {
+                if (!canManageMembers($p, $_SESSION['user']['id'])) {
+                    response(false, null, msg('no_permission'));
+                }
+
+                // Cannot remove owner
+                foreach ($p['members'] as $m) {
+                    if ($m['userId'] == $targetUserId && $m['role'] === 'owner') {
+                        response(false, null, msg('cannot_remove_owner'));
+                    }
+                }
+
+                $originalCount = count($p['members']);
+                $p['members'] = array_values(array_filter($p['members'], function($m) use ($targetUserId) {
+                    return $m['userId'] != $targetUserId;
+                }));
+
+                if (count($p['members']) < $originalCount) {
+                    $found = true;
+                    logActivity('member_removed', ['projectId' => $projectId, 'projectName' => $p['name']]);
+                } else {
+                    response(false, null, msg('member_not_found'));
+                }
+                break;
+            }
+        }
+
+        if ($found) {
+            saveProjects($projects);
+            response(true, null, msg('member_removed'));
+        } else {
+            response(false, null, msg('project_not_found'));
+        }
+        break;
+
+    case 'updateMemberRole':
+        if (!isset($_SESSION['user'])) {
+            response(false, null, msg('not_logged_in'));
+        }
+
+        $projectId = $input['projectId'] ?? 0;
+        $targetUserId = $input['userId'] ?? 0;
+        $newRole = $input['role'] ?? '';
+
+        if (!in_array($newRole, ['editor', 'viewer'])) {
+            response(false, null, msg('invalid_action'));
+        }
+
+        $projects = loadProjects();
+        migrateProjectMembers($projects);
+        $found = false;
+
+        foreach ($projects as &$p) {
+            if ($p['id'] == $projectId) {
+                if (!canManageMembers($p, $_SESSION['user']['id'])) {
+                    response(false, null, msg('no_permission'));
+                }
+
+                foreach ($p['members'] as &$m) {
+                    if ($m['userId'] == $targetUserId) {
+                        if ($m['role'] === 'owner') {
+                            response(false, null, msg('cannot_change_owner'));
+                        }
+                        $m['role'] = $newRole;
+                        $found = true;
+                        break 2;
+                    }
+                }
+
+                response(false, null, msg('member_not_found'));
+            }
+        }
+
+        if ($found) {
+            saveProjects($projects);
+            response(true, null, msg('member_updated'));
+        } else {
+            response(false, null, msg('project_not_found'));
+        }
         break;
 
     default:
