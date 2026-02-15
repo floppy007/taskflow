@@ -121,63 +121,14 @@ if (!is_dir($dataDir)) {
 $usersFile = $dataDir . '/users.json';
 $projectsFile = $dataDir . '/projects.json';
 
-// Initialize files if they don't exist
+// Check if installation is needed
 if (!file_exists($usersFile)) {
-    $defaultUsers = [
-        [
-            'id' => 1,
-            'username' => 'admin',
-            'password' => password_hash('admin', PASSWORD_DEFAULT),
-            'name' => 'Administrator',
-            'createdAt' => date('c')
-        ]
-    ];
-    file_put_contents($usersFile, json_encode($defaultUsers, JSON_PRETTY_PRINT));
+    echo json_encode(['success' => false, 'message' => 'Not installed. Please run install.php']);
+    exit;
 }
 
 if (!file_exists($projectsFile)) {
-    $defaultProjects = [
-        [
-            'id' => 1,
-            'name' => 'Website Redesign',
-            'desc' => 'Komplette Überarbeitung der Firmenwebsite',
-            'createdBy' => 1,
-            'createdAt' => date('c'),
-            'todos' => [
-                [
-                    'id' => 1,
-                    'text' => 'React Components für Hero-Section erstellen',
-                    'category' => 'Development',
-                    'priority' => 'high',
-                    'note' => '',
-                    'done' => false,
-                    'archived' => false,
-                    'createdAt' => date('c')
-                ],
-                [
-                    'id' => 2,
-                    'text' => 'Wireframes für Produktseiten',
-                    'category' => 'Design',
-                    'priority' => 'medium',
-                    'note' => '',
-                    'done' => false,
-                    'archived' => false,
-                    'createdAt' => date('c')
-                ],
-                [
-                    'id' => 3,
-                    'text' => 'Texte für About-Seite schreiben',
-                    'category' => 'Content',
-                    'priority' => 'medium',
-                    'note' => '',
-                    'done' => false,
-                    'archived' => false,
-                    'createdAt' => date('c')
-                ]
-            ]
-        ]
-    ];
-    file_put_contents($projectsFile, json_encode($defaultProjects, JSON_PRETTY_PRINT));
+    file_put_contents($projectsFile, json_encode([], JSON_PRETTY_PRINT));
 }
 
 // Helper functions
