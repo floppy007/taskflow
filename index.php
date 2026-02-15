@@ -1391,6 +1391,208 @@ if (!file_exists(__DIR__ . '/data/users.json') && file_exists(__DIR__ . '/instal
   .kanban-card-badges { display:flex; gap:6px; flex-wrap:wrap; }
   @media (max-width:768px) { .kanban-board { grid-template-columns:1fr; } }
 
+  /* Attachments */
+  .attachment-zone {
+    border:2px dashed var(--border);
+    border-radius:12px;
+    padding:20px;
+    text-align:center;
+    cursor:pointer;
+    transition:all .2s;
+    background:var(--bg-secondary);
+  }
+  .attachment-zone:hover, .attachment-zone.drag-over {
+    border-color:var(--primary);
+    background:rgba(99,102,241,.06);
+  }
+  .attachment-zone-icon { font-size:28px; margin-bottom:6px; }
+  .attachment-zone-text { font-size:13px; color:var(--text-muted); }
+  .attachment-list { margin-top:12px; }
+  .attachment-item {
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:10px 12px;
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:10px;
+    margin-bottom:8px;
+    transition:all .15s;
+  }
+  .attachment-item:hover { border-color:var(--primary); }
+  .attachment-icon { font-size:22px; flex-shrink:0; }
+  .attachment-info { flex:1; min-width:0; }
+  .attachment-name { font-size:13px; font-weight:600; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .attachment-meta { font-size:11px; color:var(--text-muted); margin-top:2px; }
+  .attachment-actions { display:flex; gap:4px; }
+  .attachment-action-btn {
+    background:transparent;
+    border:1px solid var(--border);
+    color:var(--text-muted);
+    cursor:pointer;
+    padding:4px 8px;
+    border-radius:6px;
+    font-size:12px;
+    transition:all .15s;
+  }
+  .attachment-action-btn:hover { background:var(--bg-secondary); color:var(--text); }
+  .attachment-action-btn.danger:hover { background:var(--danger); color:#fff; border-color:var(--danger); }
+  .attachment-thumb {
+    width:48px;
+    height:48px;
+    object-fit:cover;
+    border-radius:8px;
+    border:1px solid var(--border);
+    cursor:pointer;
+    flex-shrink:0;
+    transition:all .15s;
+  }
+  .attachment-thumb:hover { border-color:var(--primary); transform:scale(1.05); }
+  .attachment-badge {
+    display:inline-flex;
+    align-items:center;
+    gap:3px;
+    font-size:11px;
+    color:var(--text-muted);
+    background:var(--bg-secondary);
+    padding:2px 7px;
+    border-radius:8px;
+    font-weight:500;
+  }
+  .attachment-preview-overlay {
+    display:none;
+    position:fixed;
+    top:0;left:0;right:0;bottom:0;
+    background:rgba(0,0,0,.85);
+    z-index:2000;
+    align-items:center;
+    justify-content:center;
+    flex-direction:column;
+    padding:20px;
+  }
+  .attachment-preview-overlay.active { display:flex; animation:fadeIn .2s; }
+  .attachment-preview-header {
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    width:100%;
+    max-width:90vw;
+    padding:0 0 12px;
+  }
+  .attachment-preview-title {
+    color:#fff;
+    font-size:14px;
+    font-weight:600;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .attachment-preview-close {
+    background:rgba(255,255,255,.15);
+    border:none;
+    color:#fff;
+    font-size:28px;
+    cursor:pointer;
+    width:40px;
+    height:40px;
+    border-radius:50%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    transition:background .15s;
+    flex-shrink:0;
+  }
+  .attachment-preview-close:hover { background:rgba(255,255,255,.3); }
+  .attachment-preview-download {
+    background:rgba(255,255,255,.15);
+    border:none;
+    color:#fff;
+    font-size:18px;
+    cursor:pointer;
+    width:40px;
+    height:40px;
+    border-radius:50%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    transition:background .15s;
+    text-decoration:none;
+  }
+  .attachment-preview-download:hover { background:rgba(255,255,255,.3); }
+  .attachment-preview-body { display:flex; align-items:center; justify-content:center; flex:1; min-height:0; width:100%; }
+  .attachment-preview-img {
+    max-width:90vw;
+    max-height:80vh;
+    object-fit:contain;
+    border-radius:8px;
+    box-shadow:0 20px 60px rgba(0,0,0,.5);
+  }
+  .attachment-preview-frame {
+    width:90vw;
+    height:80vh;
+    border:none;
+    border-radius:8px;
+    background:#fff;
+  }
+  .attachment-preview-video {
+    max-width:90vw;
+    max-height:80vh;
+    border-radius:8px;
+    box-shadow:0 20px 60px rgba(0,0,0,.5);
+  }
+
+  /* Inline Attachments on Task Cards */
+  .inline-attachments {
+    margin-top:10px;
+    padding:10px;
+    background:var(--bg-secondary);
+    border:1px solid var(--border);
+    border-radius:10px;
+  }
+  .inline-att-header {
+    font-size:11px;
+    font-weight:700;
+    color:var(--text-muted);
+    text-transform:uppercase;
+    letter-spacing:.04em;
+    margin-bottom:8px;
+  }
+  .inline-att-items {
+    display:flex;
+    gap:6px;
+    flex-wrap:wrap;
+  }
+  .inline-att-thumb {
+    width:48px;
+    height:48px;
+    object-fit:cover;
+    border-radius:8px;
+    border:2px solid var(--border);
+    cursor:pointer;
+    transition:all .15s;
+    box-shadow:var(--shadow-sm);
+  }
+  .inline-att-thumb:hover { border-color:var(--primary); transform:scale(1.08); box-shadow:var(--shadow); }
+  .inline-att-file {
+    display:inline-flex;
+    align-items:center;
+    gap:4px;
+    font-size:12px;
+    color:var(--text);
+    background:var(--card);
+    padding:6px 10px;
+    border-radius:8px;
+    cursor:pointer;
+    border:1px solid var(--border);
+    transition:all .15s;
+    max-width:180px;
+    overflow:hidden;
+    white-space:nowrap;
+    font-weight:500;
+    box-shadow:var(--shadow-sm);
+  }
+  .inline-att-file:hover { border-color:var(--primary); color:var(--primary); box-shadow:var(--shadow); }
+
   /* Search Results */
   .search-results { position:absolute; top:100%; left:0; right:0; margin-top:4px; background:var(--card); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow-lg); max-height:400px; overflow-y:auto; z-index:100; display:none; }
   .search-results.active { display:block; }
@@ -2364,6 +2566,17 @@ if (!file_exists(__DIR__ . '/data/users.json') && file_exists(__DIR__ . '/instal
     <div class="form-group">
       <label class="form-label" data-i18n="todos.note_label">Notiz (optional)</label>
       <textarea class="form-input" id="editTodoNote" data-i18n-placeholder="todos.note_placeholder" placeholder="Weitere Details oder Hinweise..." style="min-height:80px;resize:vertical"></textarea>
+    </div>
+
+    <!-- Attachments Section -->
+    <div class="form-group">
+      <label class="form-label" data-i18n="attachments.title">Anhänge</label>
+      <div class="attachment-zone" id="attachmentDropZone" onclick="document.getElementById('attachmentFileInput').click()">
+        <div class="attachment-zone-icon">📎</div>
+        <div class="attachment-zone-text" data-i18n="attachments.drop_hint">Datei hierher ziehen oder klicken zum Hochladen</div>
+      </div>
+      <input type="file" id="attachmentFileInput" style="display:none" onchange="handleAttachmentUpload(this.files)">
+      <div class="attachment-list" id="attachmentList"></div>
     </div>
 
     <div style="display:flex;gap:12px;margin-top:24px">
