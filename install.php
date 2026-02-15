@@ -1,65 +1,165 @@
 <?php
 /**
- * TaskFlow v1.2 - Installer
+ * TaskFlow Installer
+ * Copy this single file to your web server and open it in a browser.
+ * It will download TaskFlow from GitHub and set up the admin account.
+ *
  * Copyright (c) 2026 Florian Hesse
- * Fischer Str. 11, 16515 Oranienburg
  * https://comnic-it.de
  */
 
+$repoUrl = 'https://github.com/floppy007/taskflow';
+$branch = 'master';
 $error = '';
 $success = false;
+$step = 'setup'; // setup, installing, done
+
+$installDir = __DIR__;
+$dataDir = $installDir . '/data';
+
+// Check if already fully installed
+if (file_exists($installDir . '/index.php') && file_exists($dataDir . '/users.json')) {
+    header('Location: index.php');
+    exit;
+}
+
+// Check if files are downloaded but no user yet
+$filesExist = file_exists($installDir . '/index.php') && file_exists($installDir . '/api.php');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $name = trim($_POST['name'] ?? '');
-    $username = trim($_POST['username'] ?? '');
-    $password = $_POST['password'] ?? '';
-    $passwordConfirm = $_POST['password_confirm'] ?? '';
+    $action = $_POST['action'] ?? '';
 
-    if (!$name || !$username || !$password) {
-        $error = 'Please fill in all fields.';
-    } elseif (strlen($password) < 4) {
-        $error = 'Password must be at least 4 characters.';
-    } elseif ($password !== $passwordConfirm) {
-        $error = 'Passwords do not match.';
-    } else {
-        // Create data directory if needed
-        $dataDir = __DIR__ . '/data';
-        if (!is_dir($dataDir)) {
-            mkdir($dataDir, 0755, true);
-        }
+    if ($action === 'download') {
+        // Step 1: Download from GitHub
+        $zipUrl = $repoUrl . '/archive/refs/heads/' . $branch . '.zip';
+        $tmpZip = sys_get_temp_dir() . '/taskflow_' . time() . '.zip';
 
-        // Create .htaccess to protect data folder
-        $htaccess = $dataDir . '/.htaccess';
-        if (!file_exists($htaccess)) {
-            file_put_contents($htaccess, "Order deny,allow\nDeny from all\n");
-        }
-
-        // Create admin user
-        $users = [
-            [
-                'id' => 1,
-                'username' => $username,
-                'password' => password_hash($password, PASSWORD_DEFAULT),
-                'name' => $name,
-                'createdAt' => date('c')
+        $ctx = stream_context_create([
+            'http' => [
+                'timeout' => 30,
+                'header' => 'User-Agent: TaskFlow-Installer',
+                'follow_location' => true
             ]
-        ];
+        ]);
 
-        // Create empty projects
-        $projects = [];
-
-        // Write files
-        $usersOk = file_put_contents($dataDir . '/users.json', json_encode($users, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-        $projectsOk = file_put_contents($dataDir . '/projects.json', json_encode($projects, JSON_PRETTY_PRINT));
-
-        if ($usersOk && $projectsOk !== false) {
-            $success = true;
-            // Delete installer
-            @unlink(__FILE__);
+        $zipData = @file_get_contents($zipUrl, false, $ctx);
+        if ($zipData === false) {
+            $error = 'Could not download from GitHub. Check your internet connection.';
         } else {
-            $error = 'Could not write data files. Check write permissions for /data directory.';
+            file_put_contents($tmpZip, $zipData);
+
+            $zip = new ZipArchive();
+            if ($zip->open($tmpZip) === true) {
+                // Extract to temp dir first
+                $tmpDir = sys_get_temp_dir() . '/taskflow_extract_' . time();
+                $zip->extractTo($tmpDir);
+                $zip->close();
+
+                // Find extracted folder (usually "taskflow-master")
+                $folders = glob($tmpDir . '/*', GLOB_ONLYDIR);
+                $srcDir = $folders[0] ?? $tmpDir;
+
+                // Copy files to install dir (skip data/*.json and install.php)
+                copyDir($srcDir, $installDir);
+
+                // Clean up
+                @unlink($tmpZip);
+                deleteDir($tmpDir);
+
+                $filesExist = true;
+            } else {
+                $error = 'Could not extract ZIP file.';
+                @unlink($tmpZip);
+            }
         }
     }
+
+    if ($action === 'createuser') {
+        // Step 2: Create admin user
+        $name = trim($_POST['name'] ?? '');
+        $username = trim($_POST['username'] ?? '');
+        $password = $_POST['password'] ?? '';
+        $passwordConfirm = $_POST['password_confirm'] ?? '';
+
+        if (!$name || !$username || !$password) {
+            $error = 'Please fill in all fields.';
+        } elseif (strlen($password) < 4) {
+            $error = 'Password must be at least 4 characters.';
+        } elseif ($password !== $passwordConfirm) {
+            $error = 'Passwords do not match.';
+        } else {
+            if (!is_dir($dataDir)) {
+                @mkdir($dataDir, 0755, true);
+            }
+
+            if (!is_writable($dataDir)) {
+                $error = 'The /data directory is not writable. Set permissions: chmod 755 data';
+            } else {
+                // .htaccess
+                $htaccess = $dataDir . '/.htaccess';
+                if (!file_exists($htaccess)) {
+                    file_put_contents($htaccess, "Order deny,allow\nDeny from all\n");
+                }
+
+                $users = [[
+                    'id' => 1,
+                    'username' => $username,
+                    'password' => password_hash($password, PASSWORD_DEFAULT),
+                    'name' => $name,
+                    'createdAt' => date('c')
+                ]];
+
+                $usersOk = file_put_contents($dataDir . '/users.json', json_encode($users, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+                $projectsOk = file_put_contents($dataDir . '/projects.json', json_encode([], JSON_PRETTY_PRINT));
+
+                if ($usersOk !== false && $projectsOk !== false) {
+                    $success = true;
+                    @unlink(__FILE__);
+                } else {
+                    $error = 'Could not write data files.';
+                }
+            }
+        }
+    }
+}
+
+function copyDir($src, $dst) {
+    $dir = opendir($src);
+    if (!is_dir($dst)) @mkdir($dst, 0755, true);
+    while (($file = readdir($dir)) !== false) {
+        if ($file === '.' || $file === '..') continue;
+        $srcPath = $src . '/' . $file;
+        $dstPath = $dst . '/' . $file;
+        if ($file === 'install.php') continue; // Don't overwrite ourselves
+        if (is_dir($srcPath)) {
+            // Skip data content files but create the dir
+            if ($file === 'data') {
+                if (!is_dir($dstPath)) @mkdir($dstPath, 0755, true);
+                // Only copy .htaccess and .gitkeep
+                foreach (['/.htaccess', '/.gitkeep'] as $keep) {
+                    if (file_exists($srcPath . $keep)) {
+                        copy($srcPath . $keep, $dstPath . $keep);
+                    }
+                }
+                continue;
+            }
+            copyDir($srcPath, $dstPath);
+        } else {
+            copy($srcPath, $dstPath);
+        }
+    }
+    closedir($dir);
+}
+
+function deleteDir($dir) {
+    if (!is_dir($dir)) return;
+    $items = scandir($dir);
+    foreach ($items as $item) {
+        if ($item === '.' || $item === '..') continue;
+        $path = $dir . '/' . $item;
+        is_dir($path) ? deleteDir($path) : @unlink($path);
+    }
+    @rmdir($dir);
 }
 ?>
 <!doctype html>
@@ -144,6 +244,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     color:#fff;
     transition:transform .2s,box-shadow .2s;
     margin-top:8px;
+    text-decoration:none;
+    display:inline-block;
+    text-align:center;
   }
   .btn:hover {
     transform:translateY(-1px);
@@ -160,19 +263,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     border:1px solid #fecaca;
   }
   .success-box {text-align:center;padding:20px 0}
-  .success-icon {font-size:48px;margin-bottom:16px}
+  .success-icon {font-size:48px;margin-bottom:16px;color:#10b981}
   .success-text {font-size:16px;color:#0f172a;font-weight:600;margin-bottom:8px}
   .success-sub {font-size:13px;color:#64748b;margin-bottom:24px}
-  .steps {
-    background:#f8fafc;
+  .info {
+    background:#f0fdf4;
+    color:#166534;
+    padding:10px 14px;
     border-radius:10px;
-    padding:16px;
-    margin-bottom:24px;
-    font-size:13px;
-    color:#64748b;
+    font-size:12px;
+    margin-bottom:16px;
+    border:1px solid #bbf7d0;
   }
-  .steps li {margin-bottom:6px}
-  .steps li:last-child {margin-bottom:0}
+  .steps {display:flex;gap:8px;margin-bottom:24px;justify-content:center}
+  .step {
+    width:32px;height:32px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    font-size:13px;font-weight:700;
+    background:#e2e8f0;color:#64748b;
+  }
+  .step.active {background:linear-gradient(135deg,#667eea,#764ba2);color:#fff}
+  .step.done {background:#10b981;color:#fff}
+  .step-line {width:40px;height:2px;background:#e2e8f0;align-self:center}
+  .step-line.done {background:#10b981}
 </style>
 </head>
 <body>
@@ -181,29 +294,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <?php if (file_exists(__DIR__ . '/logo.png')): ?>
       <img src="logo.png" alt="TaskFlow">
     <?php else: ?>
-      <div class="title" style="font-size:32px;margin-bottom:8px">TaskFlow</div>
+      <div style="font-size:32px;font-weight:800;text-align:center;margin-bottom:8px;background:linear-gradient(135deg,#667eea,#764ba2);-webkit-background-clip:text;-webkit-text-fill-color:transparent">TaskFlow</div>
     <?php endif; ?>
   </div>
 
   <?php if ($success): ?>
+    <div class="steps">
+      <div class="step done">1</div>
+      <div class="step-line done"></div>
+      <div class="step done">2</div>
+    </div>
     <div class="success-box">
       <div class="success-icon">&#10003;</div>
       <div class="success-text">Installation complete!</div>
       <div class="success-sub">TaskFlow has been set up successfully. The installer has been removed.</div>
-      <a href="index.php" class="btn" style="display:inline-block;text-decoration:none;width:auto;padding:12px 32px">Open TaskFlow</a>
+      <a href="index.php" class="btn" style="width:auto;padding:12px 32px">Open TaskFlow</a>
     </div>
-  <?php else: ?>
-    <div class="title">Installation</div>
-    <div class="subtitle">Set up your admin account to get started</div>
+
+  <?php elseif ($filesExist): ?>
+    <div class="steps">
+      <div class="step done">1</div>
+      <div class="step-line done"></div>
+      <div class="step active">2</div>
+    </div>
+    <div class="title">Create Admin Account</div>
+    <div class="subtitle">Set up your administrator login</div>
 
     <?php if ($error): ?>
       <div class="error"><?= htmlspecialchars($error) ?></div>
     <?php endif; ?>
 
     <form method="post">
+      <input type="hidden" name="action" value="createuser">
       <div class="form-group">
         <label class="form-label">Full Name</label>
-        <input type="text" name="name" class="form-input" placeholder="e.g. Max Mustermann" value="<?= htmlspecialchars($_POST['name'] ?? '') ?>" required>
+        <input type="text" name="name" class="form-input" placeholder="e.g. Max Mustermann" value="<?= htmlspecialchars($_POST['name'] ?? '') ?>" required autofocus>
       </div>
       <div class="form-group">
         <label class="form-label">Username</label>
@@ -211,13 +336,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       </div>
       <div class="form-group">
         <label class="form-label">Password</label>
-        <input type="password" name="password" class="form-input" placeholder="Choose a secure password" required>
+        <input type="password" name="password" class="form-input" placeholder="Min. 4 characters" required>
       </div>
       <div class="form-group">
         <label class="form-label">Confirm Password</label>
         <input type="password" name="password_confirm" class="form-input" placeholder="Repeat password" required>
       </div>
-      <button type="submit" class="btn">Install TaskFlow</button>
+      <button type="submit" class="btn">Create Account & Finish</button>
+    </form>
+
+  <?php else: ?>
+    <div class="steps">
+      <div class="step active">1</div>
+      <div class="step-line"></div>
+      <div class="step">2</div>
+    </div>
+    <div class="title">Installation</div>
+    <div class="subtitle">Download TaskFlow from GitHub</div>
+
+    <?php if ($error): ?>
+      <div class="error"><?= htmlspecialchars($error) ?></div>
+    <?php endif; ?>
+
+    <div class="info">
+      This will download all files from<br>
+      <strong><?= htmlspecialchars($repoUrl) ?></strong>
+    </div>
+
+    <form method="post">
+      <input type="hidden" name="action" value="download">
+      <button type="submit" class="btn" onclick="this.textContent='Downloading...';this.disabled=true;this.form.submit()">Download & Install TaskFlow</button>
     </form>
   <?php endif; ?>
 </div>
