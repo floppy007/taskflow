@@ -1364,9 +1364,9 @@ if (!file_exists(__DIR__ . '/data/users.json') && file_exists(__DIR__ . '/instal
     color:var(--text-muted);
     line-height:1.5;
     margin-top:8px;
-    padding-left:4px;
-    border-left:3px solid var(--border);
     padding-left:12px;
+    border-left:3px solid var(--border);
+    white-space:pre-line;
   }
 
   .todo-actions {
@@ -1852,7 +1852,7 @@ if (!file_exists(__DIR__ . '/data/users.json') && file_exists(__DIR__ . '/instal
           <div style="display:flex;align-items:start;justify-content:space-between;gap:20px;flex-wrap:wrap">
             <div style="flex:1">
               <h1 class="page-title" id="projectDetailTitle">Projekt</h1>
-              <p class="page-subtitle" id="projectDetailDesc">Beschreibung</p>
+              <p class="page-subtitle" id="projectDetailDesc" style="white-space:pre-line">Beschreibung</p>
             </div>
             <div style="display:flex;gap:12px;align-items:center">
               <div style="display:flex;gap:4px;background:var(--bg-secondary);padding:4px;border-radius:10px">
