@@ -1608,6 +1608,92 @@ if (!file_exists(__DIR__ . '/data/users.json') && file_exists(__DIR__ . '/instal
   .priority-high {
     animation:pulseBadge 2s ease-in-out infinite;
   }
+
+  /* Toast Notifications */
+  .toast-container {
+    position:fixed; top:20px; right:20px; z-index:9999;
+    display:flex; flex-direction:column; gap:10px; pointer-events:none;
+  }
+  .toast {
+    pointer-events:auto; display:flex; align-items:start; gap:12px;
+    padding:14px 18px; border-radius:12px; min-width:320px; max-width:480px;
+    background:var(--card); border:1px solid var(--border);
+    box-shadow:0 12px 32px rgba(0,0,0,.15); animation:toastIn .35s cubic-bezier(.16,1,.3,1);
+    cursor:pointer; position:relative;
+  }
+  .toast.toast-out { animation:toastOut .25s ease-in forwards; }
+  .toast-icon { font-size:20px; flex-shrink:0; margin-top:1px; }
+  .toast-body { flex:1; min-width:0; }
+  .toast-title { font-size:14px; font-weight:600; color:var(--text); margin-bottom:2px; }
+  .toast-msg { font-size:13px; color:var(--text-muted); word-break:break-word; }
+  .toast-copy {
+    flex-shrink:0; padding:4px 10px; border:1px solid var(--border); border-radius:6px;
+    font-size:11px; font-weight:600; font-family:inherit; cursor:pointer;
+    background:var(--bg-secondary); color:var(--text-muted); transition:all .15s;
+  }
+  .toast-copy:hover { background:var(--primary); color:#fff; border-color:var(--primary); }
+  .toast-copy.copied { background:var(--success); color:#fff; border-color:var(--success); }
+  .toast.success { border-left:4px solid var(--success); }
+  .toast.error { border-left:4px solid var(--danger); }
+  .toast.warning { border-left:4px solid var(--warning); }
+  .toast.info { border-left:4px solid var(--primary); }
+  @keyframes toastIn { from { opacity:0; transform:translateX(40px) scale(.95); } to { opacity:1; transform:translateX(0) scale(1); } }
+  @keyframes toastOut { to { opacity:0; transform:translateX(40px) scale(.95); } }
+
+  /* Member Items */
+  .member-item {
+    display:flex;
+    align-items:center;
+    gap:14px;
+    padding:14px 0;
+    border-bottom:1px solid var(--border-light);
+  }
+  .member-item:last-child { border-bottom:none; }
+  .member-avatar {
+    width:40px; height:40px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-weight:700; font-size:16px; color:#fff;
+    flex-shrink:0;
+  }
+  .member-info { flex:1; min-width:0; }
+  .member-name { font-size:14px; font-weight:600; color:var(--text); }
+  .member-role-badge {
+    display:inline-block; padding:3px 10px; border-radius:8px;
+    font-size:12px; font-weight:600; margin-left:8px;
+  }
+  .member-role-badge.owner { background:linear-gradient(135deg,#fbbf24,#f59e0b); color:#78350f; }
+  .member-role-badge.editor { background:linear-gradient(135deg,#60a5fa,#3b82f6); color:#fff; }
+  .member-role-badge.viewer { background:var(--bg-secondary); color:var(--text-muted); }
+  .member-actions { display:flex; gap:6px; align-items:center; }
+  .project-members-row {
+    display:flex; gap:0; margin-top:12px; padding-top:12px; border-top:1px solid var(--border-light);
+  }
+  .project-member-mini {
+    width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-size:11px; font-weight:700; color:#fff; border:2px solid var(--card);
+    margin-left:-6px; position:relative;
+  }
+  .project-member-mini:first-child { margin-left:0; }
+  .project-members-count {
+    display:flex; align-items:center; margin-left:8px;
+    font-size:12px; color:var(--text-muted); font-weight:500;
+  }
+  .role-toggle {
+    display:flex; gap:0; background:var(--bg-secondary); border-radius:8px; padding:3px; overflow:hidden;
+  }
+  .role-toggle-btn {
+    padding:5px 14px; border:none; border-radius:6px; font-size:12px; font-weight:600;
+    font-family:inherit; cursor:pointer; transition:all .2s;
+    background:transparent; color:var(--text-muted);
+  }
+  .role-toggle-btn.active {
+    background:var(--gradient); color:#fff; box-shadow:0 2px 6px rgba(102,126,234,.3);
+  }
+  .role-toggle-btn:not(.active):hover { color:var(--text); }
+  .member-role-select {
+    padding:6px 10px; border:1px solid var(--border); border-radius:8px;
+    font-size:13px; font-family:inherit; background:var(--card); color:var(--text); cursor:pointer;
+  }
 </style>
 </head>
 <body>
@@ -1830,22 +1916,31 @@ if (!file_exists(__DIR__ . '/data/users.json') && file_exists(__DIR__ . '/instal
         </div>
 
         <div class="card" id="createUserCard" style="display:none">
-          <h3 class="card-title" data-i18n="users.create_title">Neuer Benutzer</h3>
-          <div class="form-group">
-            <label class="form-label" data-i18n="register.name">Name</label>
-            <input type="text" class="form-input" id="newUserName" data-i18n-placeholder="register.name_placeholder" placeholder="Vollständiger Name">
-          </div>
-          <div class="form-group">
-            <label class="form-label" data-i18n="register.username">Benutzername</label>
-            <input type="text" class="form-input" id="newUserUsername" data-i18n-placeholder="register.username_placeholder" placeholder="Benutzernamen wählen">
-          </div>
-          <div class="form-group">
-            <label class="form-label" data-i18n="register.password">Passwort</label>
-            <input type="password" class="form-input" id="newUserPassword" data-i18n-placeholder="register.password_placeholder" placeholder="Sicheres Passwort wählen">
+          <h3 class="card-title" style="margin-bottom:12px" data-i18n="users.create_title">Neuer Benutzer</h3>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+            <div>
+              <label class="form-label" data-i18n="register.name">Name</label>
+              <input type="text" class="form-input" id="newUserName" data-i18n-placeholder="register.name_placeholder" placeholder="Vollständiger Name">
+            </div>
+            <div>
+              <label class="form-label" data-i18n="register.username">Benutzername</label>
+              <input type="text" class="form-input" id="newUserUsername" data-i18n-placeholder="register.username_placeholder" placeholder="Benutzernamen wählen">
+            </div>
+            <div>
+              <label class="form-label" data-i18n="register.password">Passwort</label>
+              <input type="password" class="form-input" id="newUserPassword" data-i18n-placeholder="register.password_placeholder" placeholder="Sicheres Passwort wählen">
+            </div>
+            <div>
+              <label class="form-label" data-i18n="members.select_role">Rolle</label>
+              <select class="form-input" id="newUserRole">
+                <option value="user" data-i18n="users.role_user">Benutzer</option>
+                <option value="admin" data-i18n="users.role_admin">Admin</option>
+              </select>
+            </div>
           </div>
           <div style="display:flex;gap:12px">
-            <button class="btn btn-primary" onclick="createUser()"><span data-i18n="users.create_submit">Benutzer erstellen</span></button>
-            <button class="btn btn-ghost" onclick="closeCreateUserForm()"><span data-i18n="modal.cancel">Abbrechen</span></button>
+            <button class="btn btn-primary btn-sm" onclick="createUser()"><span data-i18n="users.create_submit">Benutzer erstellen</span></button>
+            <button class="btn btn-ghost btn-sm" onclick="closeCreateUserForm()"><span data-i18n="modal.cancel">Abbrechen</span></button>
           </div>
         </div>
 
@@ -1987,6 +2082,15 @@ if (!file_exists(__DIR__ . '/data/users.json') && file_exists(__DIR__ . '/instal
         </div>
 
         <div id="kanbanContainer" style="display:none"></div>
+
+        <!-- Members Section -->
+        <div class="card" id="membersCard">
+          <div class="card-header">
+            <h3 class="card-title" data-i18n="members.title">Mitglieder</h3>
+            <button class="btn btn-primary btn-sm" id="addMemberBtn" onclick="openAddMemberModal()" data-i18n="members.add_btn">+ Mitglied hinzufügen</button>
+          </div>
+          <div id="membersList"></div>
+        </div>
       </div>
 
       <!-- Settings View -->
@@ -2200,6 +2304,36 @@ if (!file_exists(__DIR__ . '/data/users.json') && file_exists(__DIR__ . '/instal
   </div>
 </div>
 
-<script src="app.js"></script>
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Add Member Modal -->
+<div class="modal" id="addMemberModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2 class="modal-title" data-i18n="members.add_title">Mitglied hinzufügen</h2>
+      <button class="modal-close" onclick="closeModal('addMemberModal')">×</button>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" data-i18n="members.select_user">Benutzer auswählen</label>
+      <select class="form-input" id="addMemberUserId"></select>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" data-i18n="members.select_role">Rolle</label>
+      <select class="form-input" id="addMemberRole">
+        <option value="editor" data-i18n="members.role_editor">Bearbeiter</option>
+        <option value="viewer" data-i18n="members.role_viewer">Betrachter</option>
+      </select>
+    </div>
+
+    <div style="display:flex;gap:12px;margin-top:24px">
+      <button class="btn btn-primary" onclick="addMember()" style="flex:1" data-i18n="members.add_submit">Hinzufügen</button>
+      <button class="btn btn-ghost" onclick="closeModal('addMemberModal')" data-i18n="modal.cancel">Abbrechen</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js?v=<?php echo filemtime(__DIR__.'/app.js'); ?>"></script>
 </body>
 </html>
