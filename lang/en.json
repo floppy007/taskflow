@@ -104,6 +104,8 @@
   "todos.filter_done": "Done",
   "todos.view_active": "Active",
   "todos.view_archive": "Archive",
+  "todos.edit_title": "Edit Task",
+  "todos.edit_save": "Save",
   "todos.edit_btn": "Edit",
   "todos.archive_btn": "Archive",
   "todos.restore_btn": "Restore",
