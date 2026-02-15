@@ -6,7 +6,7 @@ if (!file_exists(__DIR__ . '/data/users.json') && file_exists(__DIR__ . '/instal
 }
 ?>
 <!--
-  TaskFlow v1.1
+  TaskFlow v1.2
   Copyright (c) 2026 Florian Hesse
   Fischer Str. 11, 16515 Oranienburg
   https://comnic-it.de
@@ -1564,7 +1564,7 @@ if (!file_exists(__DIR__ . '/data/users.json') && file_exists(__DIR__ . '/instal
     <div class="login-footer">
       <a href="#" onclick="showRegister();return false" data-i18n="login.create_account_link">Neuen Account erstellen &rarr;</a>
     </div>
-    <div class="copyright">TaskFlow v1.1 &copy; 2026 Florian Hesse &middot; <a href="https://comnic-it.de" target="_blank" style="color:inherit;text-decoration:underline">comnic-it.de</a></div>
+    <div class="copyright">TaskFlow v1.2 &copy; 2026 Florian Hesse &middot; <a href="https://comnic-it.de" target="_blank" style="color:inherit;text-decoration:underline">comnic-it.de</a></div>
   </div>
 </div>
 
@@ -1599,7 +1599,7 @@ if (!file_exists(__DIR__ . '/data/users.json') && file_exists(__DIR__ . '/instal
     <div class="login-footer">
       <a href="#" onclick="showLogin();return false" data-i18n="register.back_link">&larr; Zurück zum Login</a>
     </div>
-    <div class="copyright">TaskFlow v1.1 &copy; 2026 Florian Hesse &middot; <a href="https://comnic-it.de" target="_blank" style="color:inherit;text-decoration:underline">comnic-it.de</a></div>
+    <div class="copyright">TaskFlow v1.2 &copy; 2026 Florian Hesse &middot; <a href="https://comnic-it.de" target="_blank" style="color:inherit;text-decoration:underline">comnic-it.de</a></div>
   </div>
 </div>
 
@@ -1985,7 +1985,7 @@ if (!file_exists(__DIR__ . '/data/users.json') && file_exists(__DIR__ . '/instal
     </div>
 
     <footer class="content-footer">
-      <div class="copyright">TaskFlow v1.1 &copy; 2026 Florian Hesse &middot; <a href="https://comnic-it.de" target="_blank" style="color:inherit;text-decoration:underline">comnic-it.de</a></div>
+      <div class="copyright">TaskFlow v1.2 &copy; 2026 Florian Hesse &middot; <a href="https://comnic-it.de" target="_blank" style="color:inherit;text-decoration:underline">comnic-it.de</a></div>
     </footer>
   </div>
 </div>
