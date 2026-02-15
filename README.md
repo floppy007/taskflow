@@ -36,44 +36,34 @@
 
 ## Installation
 
-### 1. Download & Deploy
+### 1. Upload Installer
 
-Copy or clone the project to your web server directory:
+Download [`install.php`](https://raw.githubusercontent.com/floppy007/taskflow/main/install.php) and copy it to your web server directory (e.g. `/var/www/html/taskflow/`).
+
+### 2. Open in Browser
+
+```
+http://localhost/taskflow/install.php
+```
+
+### 3. Download Files
+
+Click **"Download & Install TaskFlow"** — the installer will automatically download all files from GitHub.
+
+### 4. Create Admin Account
+
+Enter your admin credentials (name, username, password) and click **"Create Account & Finish"**.
+
+> The installer **deletes itself automatically** after successful setup.
+
+### Alternative: Manual Installation
 
 ```bash
 git clone https://github.com/floppy007/taskflow.git /var/www/html/taskflow
-```
-
-Set write permissions for the data folder (Linux/Mac):
-```bash
 chmod 755 /var/www/html/taskflow/data
 ```
 
-### 2. Run the Setup Wizard
-
-Open TaskFlow in your browser:
-```
-http://localhost/taskflow
-```
-
-You will be automatically redirected to the **setup wizard** (`install.php`). Enter your admin account details:
-
-- Full name
-- Username
-- Password (+ confirmation)
-
-Click **"Install TaskFlow"** to complete the setup.
-
-> The installer creates the admin user, initializes the data files, and **deletes itself automatically** after successful installation.
-
-### Alternative: PHP Built-in Server (Development)
-
-```bash
-cd taskflow
-php -S localhost:8000
-```
-
-Then open `http://localhost:8000` in your browser.
+Then open `http://localhost/taskflow` and complete the setup wizard.
 
 ## File Structure
 
@@ -182,44 +172,34 @@ Free to use for personal and commercial projects. The copyright footer must not 
 
 ### Installation
 
-#### 1. Herunterladen & Bereitstellen
+#### 1. Installer hochladen
 
-Projekt auf den Webserver klonen oder kopieren:
+[`install.php`](https://raw.githubusercontent.com/floppy007/taskflow/main/install.php) herunterladen und auf den Webserver kopieren (z.B. `/var/www/html/taskflow/`).
+
+#### 2. Im Browser öffnen
+
+```
+http://localhost/taskflow/install.php
+```
+
+#### 3. Dateien herunterladen
+
+Auf **"Download & Install TaskFlow"** klicken — der Installer lädt alle Dateien automatisch von GitHub herunter.
+
+#### 4. Admin-Account erstellen
+
+Admin-Zugangsdaten eingeben (Name, Benutzername, Passwort) und auf **"Create Account & Finish"** klicken.
+
+> Der Installer **löscht sich automatisch** nach erfolgreicher Einrichtung.
+
+#### Alternative: Manuelle Installation
 
 ```bash
 git clone https://github.com/floppy007/taskflow.git /var/www/html/taskflow
-```
-
-Schreibrechte für den data-Ordner setzen (Linux/Mac):
-```bash
 chmod 755 /var/www/html/taskflow/data
 ```
 
-#### 2. Setup-Assistent ausführen
-
-TaskFlow im Browser öffnen:
-```
-http://localhost/taskflow
-```
-
-Du wirst automatisch zum **Setup-Assistenten** (`install.php`) weitergeleitet. Gib deine Admin-Zugangsdaten ein:
-
-- Vollständiger Name
-- Benutzername
-- Passwort (+ Bestätigung)
-
-Klicke auf **"Install TaskFlow"** um die Einrichtung abzuschließen.
-
-> Der Installer erstellt den Admin-Benutzer, initialisiert die Datendateien und **löscht sich automatisch** nach erfolgreicher Installation.
-
-#### Alternative: PHP Built-in Server (Entwicklung)
-
-```bash
-cd taskflow
-php -S localhost:8000
-```
-
-Dann `http://localhost:8000` im Browser öffnen.
+Dann `http://localhost/taskflow` öffnen und den Setup-Assistenten durchlaufen.
 
 ### Sicherheit
 
