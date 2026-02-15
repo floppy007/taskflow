@@ -101,12 +101,12 @@ async function apiCall(action, data = {}) {
 }
 
 // Version & Updates
-let appVersion = '1.0.0';
+let appVersion = '';
 
 async function loadVersion() {
   const result = await apiCall('getVersion');
   if (result.success && result.data) {
-    appVersion = result.data.version || '1.0.0';
+    appVersion = result.data.version || '';
   }
   document.querySelectorAll('.copyright').forEach(el => {
     const link = el.querySelector('a');
@@ -180,7 +180,7 @@ async function installUpdate() {
 
 // Copyright Protection
 (function() {
-  const _cf = () => 'TaskFlow v' + appVersion + ' \u00a9 2026 Florian Hesse \u00b7 <a href="https://comnic-it.de" target="_blank" style="color:inherit;text-decoration:underline">comnic-it.de</a>';
+  const _cf = () => 'TaskFlow' + (appVersion ? ' v' + appVersion : '') + ' \u00a9 2026 Florian Hesse \u00b7 <a href="https://comnic-it.de" target="_blank" style="color:inherit;text-decoration:underline">comnic-it.de</a>';
   function _pc() {
     document.querySelectorAll('.content-footer .copyright').forEach(el => {
       if (!el.innerHTML.includes('Florian Hesse')) el.innerHTML = _cf();
