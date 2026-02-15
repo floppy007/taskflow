@@ -5,44 +5,6 @@
  * https://comnic-it.de
  * Alle Rechte vorbehalten.
  */
-// Toast Notification System
-function showToast(message, type = 'info', title = '') {
-  const container = document.getElementById('toastContainer');
-  if (!container) return;
-
-  const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
-  const titles = { success: t('toast.success') || 'Erfolg', error: t('toast.error') || 'Fehler', warning: t('toast.warning') || 'Warnung', info: 'Info' };
-
-  const toast = document.createElement('div');
-  toast.className = `toast ${type}`;
-  toast.innerHTML = `
-    <span class="toast-icon">${icons[type] || icons.info}</span>
-    <div class="toast-body">
-      <div class="toast-title">${escapeHtml(title || titles[type])}</div>
-      <div class="toast-msg">${escapeHtml(message)}</div>
-    </div>
-    <button class="toast-copy" onclick="event.stopPropagation();copyToast(this,'${escapeHtml(message).replace(/'/g, "\\'")}')">Copy</button>
-  `;
-  toast.onclick = () => dismissToast(toast);
-  container.appendChild(toast);
-
-  setTimeout(() => dismissToast(toast), 5000);
-}
-
-function dismissToast(toast) {
-  if (toast.classList.contains('toast-out')) return;
-  toast.classList.add('toast-out');
-  setTimeout(() => toast.remove(), 250);
-}
-
-function copyToast(btn, text) {
-  navigator.clipboard.writeText(text).then(() => {
-    btn.textContent = '✓';
-    btn.classList.add('copied');
-    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1500);
-  });
-}
-
 // Data Structure
 let users = [];
 let projects = [];
@@ -127,6 +89,9 @@ function updateLangButtons() {
 
 function changeLanguage(lang) {
   loadLanguage(lang);
+  if (currentUser) {
+    apiCall('savePreferences', { preferences: { lang } });
+  }
 }
 
 // API Helper
@@ -200,7 +165,7 @@ async function installUpdate() {
   const installBtn = document.getElementById('installUpdateBtn');
   const status = document.getElementById('updateStatus');
 
-  if (!confirm(t('settings.update_confirm'))) return;
+  if (!await showConfirm(t('settings.update_confirm'), { icon: '🔄', title: t('settings.update_title'), danger: false })) return;
 
   installBtn.disabled = true;
   installBtn.textContent = t('settings.update_installing');
@@ -293,7 +258,7 @@ async function login() {
   const password = document.getElementById('loginPassword').value;
 
   if (!username || !password) {
-    showToast(t('login.alert_fields'), 'warning');
+    showToast('Login', t('login.alert_fields'), 'warning');
     return;
   }
 
@@ -304,7 +269,7 @@ async function login() {
     await loadProjectsFromServer();
     showApp();
   } else {
-    showToast(result.message || t('login.alert_failed'), 'error');
+    showToast('Login', result.message || t('login.alert_failed'), 'error');
   }
 }
 
@@ -314,22 +279,22 @@ async function register() {
   const password = document.getElementById('regPassword').value;
 
   if (!name || !username || !password) {
-    showToast(t('register.alert_fields'), 'warning');
+    showToast('Register', t('register.alert_fields'), 'warning');
     return;
   }
 
   const result = await apiCall('register', {name, username, password});
 
   if (result.success) {
-    showToast(t('register.alert_success'), 'success');
+    showToast('Register', t('register.alert_success'), 'success');
     showLogin();
   } else {
-    showToast(result.message || t('register.alert_failed'), 'error');
+    showToast('Register', result.message || t('register.alert_failed'), 'error');
   }
 }
 
 async function logout() {
-  if (confirm(t('nav.logout_confirm'))) {
+  if (await showConfirm(t('nav.logout_confirm'), { icon: '🚪', danger: false })) {
     await apiCall('logout');
     currentUser = null;
     projects = [];
@@ -348,24 +313,38 @@ async function showApp() {
   document.getElementById('userName').textContent = currentUser.name;
   document.getElementById('userAvatar').textContent = currentUser.name.charAt(0).toUpperCase();
 
-  // Load users for member avatar rendering
-  const usersResult = await apiCall('getUsers');
-  if (usersResult.success) users = usersResult.data;
+  const isAdmin = currentUser.role === 'admin';
+  const navUsersItem = document.getElementById('navUsersItem');
+  if (navUsersItem) navUsersItem.style.display = isAdmin ? '' : 'none';
 
-  // Show/hide admin-only nav items
-  applyAdminUI();
+  const userRoleEl = document.getElementById('userRole');
+  if (userRoleEl) userRoleEl.textContent = isAdmin ? t('users.role_admin') : t('users.role_user');
+
+  // Load per-user preferences from server
+  await loadUserPreferences();
 
   renderDashboard();
+  loadNotifications();
 }
 
-function applyAdminUI() {
-  const iAmAdmin = currentUser.role === 'admin';
-  // Users nav item (index 2 in nav-items)
-  const navItems = document.querySelectorAll('.nav-item');
-  if (navItems[2]) navItems[2].style.display = iAmAdmin ? '' : 'none';
-  // User role display in sidebar
-  const roleEl = document.querySelector('.user-role');
-  if (roleEl) roleEl.textContent = iAmAdmin ? t('users.role_admin') : t('users.role_user');
+async function loadUserPreferences() {
+  const result = await apiCall('getPreferences');
+  if (result.success && result.data) {
+    const prefs = result.data;
+    if (prefs.theme) {
+      localStorage.setItem('taskflow_theme', prefs.theme);
+      changeTheme(prefs.theme, false);
+    }
+    if (prefs.darkMode !== undefined) {
+      const isDark = !!prefs.darkMode;
+      localStorage.setItem('taskflow_dark', isDark ? 'true' : 'false');
+      document.body.setAttribute('data-dark', isDark);
+      updateDarkModeUI(isDark);
+    }
+    if (prefs.lang && prefs.lang !== currentLang) {
+      await loadLanguage(prefs.lang);
+    }
+  }
 }
 
 // Project Management
@@ -410,7 +389,7 @@ async function createProject() {
   const desc = document.getElementById('newProjectDesc').value.trim();
 
   if (!name) {
-    showToast(t('projects.name_required'), 'warning');
+    showToast(t('topbar.new_project'), t('projects.name_required'), 'warning');
     return;
   }
 
@@ -425,7 +404,7 @@ async function createProject() {
     renderDashboard();
     renderProjects();
   } else {
-    showToast(result.message || t('projects.create_error'), 'error');
+    showToast(t('topbar.new_project'), result.message || t('projects.create_error'), 'error');
   }
 }
 
@@ -442,17 +421,17 @@ function showProjects() {
   hideAllViews();
   showViewAnimated('projectsView');
   renderProjects();
+  loadDeletedProjects();
 }
 
 async function showUsers() {
-  if (currentUser.role !== 'admin') return;
+  if (currentUser.role !== 'admin') {
+    showDashboard();
+    return;
+  }
   setActiveNav(2);
   hideAllViews();
   showViewAnimated('usersView');
-
-  // Show/hide create user button based on admin role
-  const createBtn = document.querySelector('#usersView .btn-primary[onclick="openCreateUserForm()"]');
-  if (createBtn) createBtn.style.display = currentUser.role === 'admin' ? '' : 'none';
 
   const result = await apiCall('getUsers');
   if (result.success) {
@@ -531,10 +510,16 @@ function renderDashboard() {
     const done = activeTodos.filter(t => t.done).length;
     const open = total - done;
     const pct = total ? Math.round((done / total) * 100) : 0;
+    const canDelete = canDeleteProject(p);
+    const canManage = canDeleteProject(p);
 
     return `
       <div class="project-card" onclick="openProjectDetail(${p.id})" ${p.color ? `style="border-top:3px solid ${p.color}"` : ''}>
         <div class="project-icon" ${p.color ? `style="background:${p.color}20;color:${p.color}"` : ''}>📁</div>
+        ${canManage || canDelete ? `<div class="project-card-actions">
+          ${canManage ? `<button class="project-action-btn btn-members" onclick="event.stopPropagation();openManageMembersModal(${p.id})" title="${escapeHtml(t('members.title'))}">👥</button>` : ''}
+          ${canDelete ? `<button class="project-action-btn" onclick="event.stopPropagation();deleteProject(${p.id})" title="${escapeHtml(t('project_detail.delete'))}" style="border-color:var(--border);" onmouseover="this.style.background='var(--danger)';this.style.color='#fff';this.style.borderColor='var(--danger)'" onmouseout="this.style.background='transparent';this.style.color='var(--text-muted)';this.style.borderColor='var(--border)'">🗑️</button>` : ''}
+        </div>` : ''}
         <div class="project-header">
           <div>
             <div class="project-title">${escapeHtml(p.name)}</div>
@@ -564,10 +549,17 @@ function renderDashboard() {
             <span class="project-stat-label">${escapeHtml(t('projects.total'))}</span>
           </div>
         </div>
-        ${renderMemberAvatars(p.members)}
       </div>
     `;
   }).join('');
+}
+
+function canDeleteProject(p) {
+  if (currentUser.role === 'admin') return true;
+  if (p.members) {
+    return p.members.some(m => m.userId === currentUser.id && m.role === 'owner');
+  }
+  return p.createdBy === currentUser.id;
 }
 
 function renderProjects() {
@@ -592,11 +584,16 @@ function renderProjects() {
     const done = activeTodos.filter(t => t.done).length;
     const open = total - done;
     const pct = total ? Math.round((done / total) * 100) : 0;
+    const canDelete = canDeleteProject(p);
+    const canManage = canDeleteProject(p);
 
     return `
       <div class="project-card" onclick="openProjectDetail(${p.id})" ${p.color ? `style="border-top:3px solid ${p.color}"` : ''}>
         <div class="project-icon">📁</div>
-        <button class="project-menu" onclick="event.stopPropagation();deleteProject(${p.id})">⋮</button>
+        ${canManage || canDelete ? `<div class="project-card-actions">
+          ${canManage ? `<button class="project-action-btn btn-members" onclick="event.stopPropagation();openManageMembersModal(${p.id})" title="${escapeHtml(t('members.title'))}">👥</button>` : ''}
+          ${canDelete ? `<button class="project-action-btn" onclick="event.stopPropagation();deleteProject(${p.id})" title="${escapeHtml(t('project_detail.delete'))}" style="border-color:var(--border);" onmouseover="this.style.background='var(--danger)';this.style.color='#fff';this.style.borderColor='var(--danger)'" onmouseout="this.style.background='transparent';this.style.color='var(--text-muted)';this.style.borderColor='var(--border)'">🗑️</button>` : ''}
+        </div>` : ''}
         <div class="project-title">${escapeHtml(p.name)}</div>
         <div class="project-desc">${escapeHtml(p.desc || t('projects.no_desc'))}</div>
         <div class="project-progress">
@@ -622,7 +619,6 @@ function renderProjects() {
             <span class="project-stat-label">${escapeHtml(t('projects.total'))}</span>
           </div>
         </div>
-        ${renderMemberAvatars(p.members)}
       </div>
     `;
   }).join('');
@@ -630,71 +626,47 @@ function renderProjects() {
 
 function renderUsers() {
   const container = document.getElementById('usersList');
-  const iAmAdmin = currentUser.role === 'admin';
-
   container.innerHTML = users.map(u => {
-    const roleLabel = u.role === 'admin' ? t('users.role_admin') : t('users.role_user');
-    const roleBadgeClass = u.role === 'admin' ? 'owner' : 'viewer';
-
-    let roleHtml = `<span class="member-role-badge ${roleBadgeClass}">${escapeHtml(roleLabel)}</span>`;
-    if (iAmAdmin && u.id !== currentUser.id) {
-      roleHtml = `<div class="role-toggle">
-        <button class="role-toggle-btn ${u.role === 'admin' ? 'active' : ''}" onclick="changeUserRole(${u.id},'admin')">${escapeHtml(t('users.role_admin'))}</button>
-        <button class="role-toggle-btn ${u.role === 'user' ? 'active' : ''}" onclick="changeUserRole(${u.id},'user')">${escapeHtml(t('users.role_user'))}</button>
-      </div>`;
-    }
+    const role = u.role || 'admin';
+    const isAdmin = role === 'admin';
+    const badgeClass = isAdmin ? 'badge-admin' : 'badge-user';
+    const badgeLabel = isAdmin ? t('users.role_admin') : t('users.role_user');
+    const badgeIcon = isAdmin ? '🛡️' : '👤';
+    const newRole = isAdmin ? 'user' : 'admin';
 
     return `
-      <div style="display:flex;align-items:center;gap:16px;padding:16px;border-bottom:1px solid var(--border)">
-        <div class="user-avatar">${u.name.charAt(0).toUpperCase()}</div>
-        <div style="flex:1">
-          <div style="font-weight:600;margin-bottom:4px">${escapeHtml(u.name)}</div>
-          <div style="font-size:14px;color:var(--text-muted)">@${escapeHtml(u.username)}</div>
-        </div>
-        <div>${roleHtml}</div>
-        <div style="font-size:12px;color:var(--text-muted)">
-          ${escapeHtml(t('users.created'))} ${new Date(u.createdAt).toLocaleDateString(currentLang === 'de' ? 'de-DE' : 'en-US')}
-        </div>
-        ${iAmAdmin && u.id !== currentUser.id ? `<button class="btn btn-danger btn-sm" onclick="deleteUser(${u.id})" title="${escapeHtml(t('users.delete_btn'))}">🗑️</button>` : ''}
+    <div style="display:flex;align-items:center;gap:16px;padding:16px;border-bottom:1px solid var(--border)">
+      <div class="user-avatar">${u.name.charAt(0).toUpperCase()}</div>
+      <div style="flex:1">
+        <div style="font-weight:600;margin-bottom:4px">${escapeHtml(u.name)}</div>
+        <div style="font-size:14px;color:var(--text-muted)">@${escapeHtml(u.username)}</div>
       </div>
-    `;
+      <span class="${badgeClass}">${badgeIcon} ${escapeHtml(badgeLabel)}</span>
+      <div style="font-size:12px;color:var(--text-muted)">
+        ${escapeHtml(t('users.created'))} ${new Date(u.createdAt).toLocaleDateString(currentLang === 'de' ? 'de-DE' : 'en-US')}
+      </div>
+      ${u.id !== currentUser.id ? `<button class="btn btn-secondary btn-sm" onclick="toggleUserRole(${u.id},'${newRole}')" title="${escapeHtml(t('users.change_role'))}">${escapeHtml(t('users.change_role'))}</button>` : ''}
+      ${u.id !== currentUser.id ? `<button class="btn btn-danger btn-sm" onclick="deleteUser(${u.id})" title="${escapeHtml(t('users.delete_btn'))}">🗑️</button>` : ''}
+    </div>
+  `;
   }).join('');
 }
 
-async function changeUserRole(userId, newRole) {
-  const result = await apiCall('updateUserRole', { id: userId, role: newRole });
-  if (result.success) {
-    const usersResult = await apiCall('getUsers');
-    if (usersResult.success) {
-      users = usersResult.data;
-      renderUsers();
-    }
-  } else {
-    showToast(result.message || t('users.role_error'), 'error');
-    // Revert UI
-    const usersResult = await apiCall('getUsers');
-    if (usersResult.success) {
-      users = usersResult.data;
-      renderUsers();
-    }
-  }
-}
-
 async function deleteProject(id) {
-  if (confirm(t('projects.delete_confirm'))) {
+  if (await showConfirm(t('projects.delete_confirm'), { icon: '🗑️', title: t('project_detail.delete') })) {
     const result = await apiCall('deleteProject', {id});
     if (result.success) {
       await loadProjectsFromServer();
       renderDashboard();
       renderProjects();
     } else {
-      showToast(result.message || t('projects.delete_error'), 'error');
+      showToast(t('project_detail.delete'), result.message || t('projects.delete_error'), 'error');
     }
   }
 }
 
 // Project Detail View Functions
-async function openProjectDetail(projectId) {
+function openProjectDetail(projectId) {
   currentProjectId = projectId;
   const project = projects.find(p => p.id === projectId);
   if (!project) return;
@@ -706,25 +678,12 @@ async function openProjectDetail(projectId) {
   document.getElementById('projectDetailDesc').textContent = project.desc || t('projects.no_desc');
 
   currentTodoView = 'active';
-  currentProjectView = 'list';
+  currentProjectView = 'kanban';
   switchTodoView('active');
 
-  // Reset view toggle buttons
-  const kanbanContainer = document.getElementById('kanbanContainer');
-  if (kanbanContainer) kanbanContainer.style.display = 'none';
-  const listBtn = document.getElementById('listViewBtn');
-  const kanbanBtn = document.getElementById('kanbanViewBtn');
-  if (listBtn) { listBtn.style.background = 'var(--card)'; listBtn.style.boxShadow = 'var(--shadow-sm)'; listBtn.classList.remove('btn-ghost'); }
-  if (kanbanBtn) { kanbanBtn.style.background = 'transparent'; kanbanBtn.style.boxShadow = 'none'; kanbanBtn.classList.add('btn-ghost'); }
-
-  // Load users for member rendering
-  const usersResult = await apiCall('getUsers');
-  if (usersResult.success) users = usersResult.data;
-
   renderProjectStats();
-  renderProjectTodos();
-  renderMembers();
-  applyPermissionUI();
+  switchProjectView('kanban');
+  renderMembers(project);
 }
 
 function backToProjects() {
@@ -747,7 +706,7 @@ function editProject() {
 
 async function saveEditProject() {
   const name = document.getElementById('editProjectName').value.trim();
-  if (!name) { showToast(t('projects.name_required'), 'warning'); return; }
+  if (!name) { showToast(t('modal.edit_project'), t('projects.name_required'), 'warning'); return; }
 
   const result = await apiCall('updateProject', {
     id: currentProjectId,
@@ -765,12 +724,12 @@ async function saveEditProject() {
     renderDashboard();
     renderProjects();
   } else {
-    showToast(result.message || t('projects.edit_error'), 'error');
+    showToast(t('modal.edit_project'), result.message || t('projects.edit_error'), 'error');
   }
 }
 
 async function deleteCurrentProject() {
-  if (!confirm(t('projects.delete_confirm'))) return;
+  if (!await showConfirm(t('projects.delete_confirm'), { icon: '🗑️', title: t('project_detail.delete') })) return;
 
   const result = await apiCall('deleteProject', {id: currentProjectId});
   if (result.success) {
@@ -778,7 +737,7 @@ async function deleteCurrentProject() {
     backToProjects();
     renderDashboard();
   } else {
-    showToast(result.message || t('projects.delete_error'), 'error');
+    showToast(t('project_detail.delete'), result.message || t('projects.delete_error'), 'error');
   }
 }
 
@@ -826,7 +785,7 @@ async function addTodoToProject() {
 
   const text = document.getElementById('newTodoText').value.trim();
   if (!text) {
-    showToast(t('todos.alert_required'), 'warning');
+    showToast(t('todos.new_title'), t('todos.alert_required'), 'warning');
     return;
   }
 
@@ -854,7 +813,7 @@ async function addTodoToProject() {
     renderProjectTodos();
     renderDashboard();
   } else {
-    showToast(result.message || t('todos.alert_add_error'), 'error');
+    showToast(t('todos.new_title'), result.message || t('todos.alert_add_error'), 'error');
   }
 }
 
@@ -932,9 +891,6 @@ function renderProjectTodos() {
     high: t('todos.priority_high')
   };
 
-  const myRole = getCurrentProjectRole();
-  const canEdit = myRole === 'owner' || myRole === 'editor';
-
   let html = '';
 
   Object.keys(grouped).forEach(category => {
@@ -948,9 +904,9 @@ function renderProjectTodos() {
 
     grouped[category].forEach(todo => {
       html += `
-        <div class="todo-item ${todo.done ? 'done' : ''}" ${canEdit ? `draggable="true" data-todo-id="${todo.id}" ondragstart="todoDragStart(event)" ondragover="todoDragOver(event)" ondrop="todoDrop(event)" ondragend="todoDragEnd(event)"` : `data-todo-id="${todo.id}"`}>
-          ${canEdit ? '<div class="todo-drag-handle" title="Drag to reorder">⋮⋮</div>' : ''}
-          <div class="todo-checkbox ${todo.done ? 'checked' : ''}" ${canEdit ? `onclick="toggleTodo(${todo.id})"` : ''} ${!canEdit ? 'style="cursor:default"' : ''}>
+        <div class="todo-item ${todo.done ? 'done' : ''}" draggable="true" data-todo-id="${todo.id}" ondragstart="todoDragStart(event)" ondragover="todoDragOver(event)" ondrop="todoDrop(event)" ondragend="todoDragEnd(event)">
+          <div class="todo-drag-handle" title="Drag to reorder">⋮⋮</div>
+          <div class="todo-checkbox ${todo.done ? 'checked' : ''}" onclick="toggleTodo(${todo.id})">
             ${todo.done ? '✓' : ''}
           </div>
           <div class="todo-content">
@@ -967,11 +923,11 @@ function renderProjectTodos() {
               ${todo.done && todo.closedBy ? `<span style="margin-left:8px">${escapeHtml(t('todos.closed_by'))} @${escapeHtml(todo.closedBy)}${todo.closedAt ? ' (' + new Date(todo.closedAt).toLocaleDateString(currentLang === 'de' ? 'de-DE' : 'en-US') + ')' : ''}</span>` : ''}
             </div>
             ${todo.note ? `<div class="todo-note">${escapeHtml(todo.note)}</div>` : ''}
-            ${canEdit ? `<div class="todo-actions">
+            <div class="todo-actions">
               <button class="todo-action-btn" onclick="editTodo(${todo.id})">✏️ ${escapeHtml(t('todos.edit_btn'))}</button>
               <button class="todo-action-btn" onclick="archiveTodo(${todo.id})">${todo.archived ? '📂 ' + escapeHtml(t('todos.restore_btn')) : '📦 ' + escapeHtml(t('todos.archive_btn'))}</button>
               <button class="todo-action-btn danger" onclick="deleteTodo(${todo.id})">🗑️ ${escapeHtml(t('todos.delete_btn'))}</button>
-            </div>` : ''}
+            </div>
           </div>
         </div>
       `;
@@ -1025,7 +981,7 @@ function editTodo(todoId) {
 async function saveEditTodo() {
   const todoId = parseInt(document.getElementById('editTodoId').value);
   const text = document.getElementById('editTodoText').value.trim();
-  if (!text) { showToast(t('todos.alert_required'), 'warning'); return; }
+  if (!text) { showToast(t('todos.edit_title'), t('todos.alert_required'), 'warning'); return; }
 
   const result = await apiCall('updateTodo', {
     projectId: currentProjectId,
@@ -1070,7 +1026,7 @@ async function archiveTodo(todoId) {
 }
 
 async function deleteTodo(todoId) {
-  if (!confirm(t('todos.delete_confirm'))) return;
+  if (!await showConfirm(t('todos.delete_confirm'), { icon: '🗑️', title: t('todos.delete_btn') })) return;
 
   const result = await apiCall('deleteTodo', {
     projectId: currentProjectId,
@@ -1099,9 +1055,9 @@ async function exportData() {
     a.click();
     URL.revokeObjectURL(url);
 
-    showToast(t('data.export_success'), 'success');
+    showToast(t('settings.backup_title'), t('data.export_success'), 'success');
   } else {
-    showToast(result.message || t('data.export_failed'), 'error');
+    showToast(t('settings.backup_title'), result.message || t('data.export_failed'), 'error');
   }
 }
 
@@ -1115,22 +1071,22 @@ async function importData(event) {
       const data = JSON.parse(e.target.result);
 
       if (!data.users || !data.projects) {
-        showToast(t('data.import_invalid'), 'warning');
+        showToast(t('settings.backup_title'), t('data.import_invalid'), 'error');
         return;
       }
 
-      if (confirm(t('data.import_confirm'))) {
+      if (await showConfirm(t('data.import_confirm'), { icon: '⚠️', title: t('settings.backup_title') })) {
         const result = await apiCall('importData', data);
         if (result.success) {
           await loadProjectsFromServer();
           renderDashboard();
-          showToast(t('data.import_success'), 'success');
+          showToast(t('settings.backup_title'), t('data.import_success'), 'success');
         } else {
-          showToast(result.message || t('data.import_failed'), 'error');
+          showToast(t('settings.backup_title'), result.message || t('data.import_failed'), 'error');
         }
       }
     } catch (error) {
-      showToast(t('data.import_read_error') + error.message, 'error');
+      showToast(t('settings.backup_title'), t('data.import_read_error') + error.message, 'error');
     }
   };
   reader.readAsText(file);
@@ -1143,23 +1099,23 @@ async function changePassword() {
   const confirmPw = document.getElementById('confirmPassword').value;
 
   if (!currentPw || !newPw || !confirmPw) {
-    showToast(t('settings.password_fields_required'), 'warning');
+    showToast(t('settings.password_title'), t('settings.password_fields_required'), 'warning');
     return;
   }
 
   if (newPw !== confirmPw) {
-    showToast(t('settings.password_mismatch'), 'warning');
+    showToast(t('settings.password_title'), t('settings.password_mismatch'), 'warning');
     return;
   }
 
   const result = await apiCall('changePassword', {currentPassword: currentPw, newPassword: newPw});
   if (result.success) {
-    showToast(t('settings.password_success'), 'success');
+    showToast(t('settings.password_title'), t('settings.password_success'), 'success');
     document.getElementById('currentPassword').value = '';
     document.getElementById('newPassword').value = '';
     document.getElementById('confirmPassword').value = '';
   } else {
-    showToast(result.message || t('settings.password_error'), 'error');
+    showToast(t('settings.password_title'), result.message || t('settings.password_error'), 'error');
   }
 }
 
@@ -1183,28 +1139,44 @@ async function createUser() {
   const role = document.getElementById('newUserRole').value;
 
   if (!name || !username || !password) {
-    showToast(t('register.alert_fields'), 'warning');
+    showToast(t('users.create_title'), t('register.alert_fields'), 'warning');
     return;
   }
 
   const result = await apiCall('createUser', {name, username, password, role});
   if (result.success) {
     closeCreateUserForm();
+    showToast(t('users.create_title'), result.message, 'success');
     const usersResult = await apiCall('getUsers');
     if (usersResult.success) {
       users = usersResult.data;
       renderUsers();
     }
   } else {
-    showToast(result.message || t('users.create_error'), 'error');
+    showToast(t('users.create_title'), result.message || t('users.create_error'), 'error');
   }
 }
 
 // User Deletion
 async function deleteUser(id) {
-  if (!confirm(t('users.delete_confirm'))) return;
+  if (!await showConfirm(t('users.delete_confirm'), { icon: '🗑️', title: t('users.delete_btn') })) return;
 
   const result = await apiCall('deleteUser', {id});
+  if (result.success) {
+    showToast(t('users.title'), result.message, 'success');
+    const usersResult = await apiCall('getUsers');
+    if (usersResult.success) {
+      users = usersResult.data;
+      renderUsers();
+    }
+  } else {
+    showToast(t('users.title'), result.message || t('users.delete_error'), 'error');
+  }
+}
+
+// Toggle User Role
+async function toggleUserRole(id, newRole) {
+  const result = await apiCall('updateUserRole', {id, role: newRole});
   if (result.success) {
     const usersResult = await apiCall('getUsers');
     if (usersResult.success) {
@@ -1212,7 +1184,7 @@ async function deleteUser(id) {
       renderUsers();
     }
   } else {
-    showToast(result.message || t('users.delete_error'), 'error');
+    showToast(t('users.title'), result.message || t('users.no_permission'), 'error');
   }
 }
 
@@ -1222,13 +1194,13 @@ function uploadLogo(event) {
   if (!file) return;
 
   if (!file.type.match(/^image\/(png|jpeg|svg\+xml)$/)) {
-    showToast(t('settings.logo_invalid'), 'warning');
+    showToast(t('settings.logo_title'), t('settings.logo_invalid'), 'warning');
     event.target.value = '';
     return;
   }
 
   if (file.size > 2 * 1024 * 1024) {
-    showToast(t('settings.logo_too_big'), 'warning');
+    showToast(t('settings.logo_title'), t('settings.logo_too_big'), 'warning');
     event.target.value = '';
     return;
   }
@@ -1269,7 +1241,7 @@ function applyLogo() {
 }
 
 // Theme Management
-function changeTheme(theme) {
+function changeTheme(theme, save = true) {
   document.body.setAttribute('data-theme', theme);
   localStorage.setItem('taskflow_theme', theme);
 
@@ -1278,11 +1250,15 @@ function changeTheme(theme) {
   });
   const opt = document.querySelector(`.theme-option[data-theme="${theme}"]`);
   if (opt) opt.classList.add('active');
+
+  if (save && currentUser) {
+    apiCall('savePreferences', { preferences: { theme } });
+  }
 }
 
 function loadTheme() {
   const savedTheme = localStorage.getItem('taskflow_theme') || 'purple';
-  changeTheme(savedTheme);
+  changeTheme(savedTheme, false);
 }
 
 // Due Date Helper
@@ -1304,6 +1280,10 @@ function toggleDarkMode() {
   document.body.setAttribute('data-dark', newVal);
   localStorage.setItem('taskflow_dark', newVal ? 'true' : 'false');
   updateDarkModeUI(newVal);
+
+  if (currentUser) {
+    apiCall('savePreferences', { preferences: { darkMode: newVal } });
+  }
 }
 
 function loadDarkMode() {
@@ -1601,106 +1581,76 @@ async function todoDrop(e) {
   }
 }
 
-// ========== Member Helpers ==========
+// Toast Notifications
+function showToast(title, msg, type = 'info') {
+  const container = document.getElementById('toastContainer');
+  if (!container) return;
 
-function renderMemberAvatars(members) {
-  if (!members || members.length === 0) return '';
-  const colors = ['#667eea','#ec4899','#10b981','#f59e0b','#8b5cf6','#06b6d4','#ef4444','#84cc16'];
-  const maxShow = 4;
-  const shown = members.slice(0, maxShow);
-  const extra = members.length - maxShow;
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.style.display = 'flex';
+  toast.style.alignItems = 'flex-start';
+  toast.style.gap = '12px';
+  toast.style.padding = '14px 16px';
 
-  let html = '<div class="project-members-row">';
-  shown.forEach((m, i) => {
-    const user = users.find(u => u.id === m.userId);
-    const initial = user ? user.name.charAt(0).toUpperCase() : '?';
-    html += `<div class="project-member-mini" style="background:${colors[i % colors.length]}" title="${escapeHtml(user ? user.name : 'User #' + m.userId)}">${initial}</div>`;
+  const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
+
+  toast.innerHTML = `
+    <div class="toast-icon">${icons[type] || icons.info}</div>
+    <div class="toast-body">
+      <div class="toast-title">${escapeHtml(title)}</div>
+      <div class="toast-msg">${escapeHtml(msg)}</div>
+    </div>
+  `;
+
+  container.appendChild(toast);
+
+  setTimeout(() => {
+    toast.classList.add('toast-out');
+    setTimeout(() => toast.remove(), 300);
+  }, 5000);
+}
+
+// Custom Confirm Dialog (replaces browser confirm())
+function showConfirm(message, { title = '', icon = '⚠️', yesText = 'OK', noText = '', danger = true } = {}) {
+  return new Promise(resolve => {
+    const modal = document.getElementById('confirmModal');
+    document.getElementById('confirmIcon').textContent = icon;
+    document.getElementById('confirmTitle').textContent = title || t('modal.confirm_title') || 'Bestätigung';
+    document.getElementById('confirmMessage').textContent = message;
+
+    const yesBtn = document.getElementById('confirmYesBtn');
+    const noBtn = document.getElementById('confirmNoBtn');
+    yesBtn.textContent = yesText || 'OK';
+    noBtn.textContent = noText || t('modal.cancel') || 'Abbrechen';
+    yesBtn.className = danger ? 'btn btn-danger' : 'btn btn-primary';
+
+    function cleanup(result) {
+      modal.classList.remove('active');
+      yesBtn.removeEventListener('click', onYes);
+      noBtn.removeEventListener('click', onNo);
+      resolve(result);
+    }
+    function onYes() { cleanup(true); }
+    function onNo() { cleanup(false); }
+
+    yesBtn.addEventListener('click', onYes);
+    noBtn.addEventListener('click', onNo);
+    modal.classList.add('active');
   });
-  if (extra > 0) {
-    html += `<span class="project-members-count">+${extra}</span>`;
-  }
-  html += '</div>';
-  return html;
 }
 
-// ========== Member Management ==========
-
-function getCurrentProjectRole() {
-  const project = projects.find(p => p.id === currentProjectId);
-  if (!project || !project.members) return null;
-  const member = project.members.find(m => m.userId === currentUser.id);
-  return member ? member.role : null;
-}
-
-function renderMembers() {
+// Member Management
+async function openAddMemberModal() {
   const project = projects.find(p => p.id === currentProjectId);
   if (!project) return;
 
-  const membersCard = document.getElementById('membersCard');
-  const addBtn = document.getElementById('addMemberBtn');
-  const container = document.getElementById('membersList');
-  const myRole = getCurrentProjectRole();
-
-  // Only show add button for owners
-  if (addBtn) addBtn.style.display = myRole === 'owner' ? '' : 'none';
-
-  const members = project.members || [];
-  if (members.length === 0) {
-    container.innerHTML = `<div style="padding:16px;color:var(--text-muted);text-align:center">${escapeHtml(t('members.no_users'))}</div>`;
-    return;
-  }
-
-  const roleLabels = {
-    owner: t('members.role_owner'),
-    editor: t('members.role_editor'),
-    viewer: t('members.role_viewer')
-  };
-
-  const colors = ['#667eea','#ec4899','#10b981','#f59e0b','#8b5cf6','#06b6d4','#ef4444','#84cc16'];
-
-  container.innerHTML = members.map((m, idx) => {
-    const user = users.find(u => u.id === m.userId);
-    const name = user ? user.name : `User #${m.userId}`;
-    const initial = name.charAt(0).toUpperCase();
-    const color = colors[idx % colors.length];
-    const isMe = m.userId === currentUser.id;
-    const iAmOwner = myRole === 'owner';
-
-    let actionsHtml = '';
-    if (iAmOwner && m.role !== 'owner') {
-      actionsHtml = `
-        <select class="member-role-select" onchange="changeMemberRole(${m.userId}, this.value)">
-          <option value="editor" ${m.role === 'editor' ? 'selected' : ''}>${escapeHtml(roleLabels.editor)}</option>
-          <option value="viewer" ${m.role === 'viewer' ? 'selected' : ''}>${escapeHtml(roleLabels.viewer)}</option>
-        </select>
-        <button class="todo-action-btn danger" onclick="removeMember(${m.userId})" title="${escapeHtml(t('members.remove_btn'))}">✕</button>
-      `;
-    }
-
-    return `
-      <div class="member-item">
-        <div class="member-avatar" style="background:${color}">${initial}</div>
-        <div class="member-info">
-          <span class="member-name">${escapeHtml(name)} ${isMe ? '<span style="color:var(--text-muted);font-weight:400">' + escapeHtml(t('members.you')) + '</span>' : ''}</span>
-          <span class="member-role-badge ${m.role}">${escapeHtml(roleLabels[m.role] || m.role)}</span>
-        </div>
-        <div class="member-actions">${actionsHtml}</div>
-      </div>
-    `;
-  }).join('');
-}
-
-async function openAddMemberModal() {
-  // Load all users to populate the dropdown
-  const result = await apiCall('getUsers');
+  const result = await apiCall('getAllUsers');
   if (!result.success) return;
 
   const allUsers = result.data || [];
-  const project = projects.find(p => p.id === currentProjectId);
-  if (!project) return;
-
-  const existingIds = (project.members || []).map(m => m.userId);
-  const available = allUsers.filter(u => !existingIds.includes(u.id));
+  const memberIds = (project.members || []).map(m => m.userId);
+  const available = allUsers.filter(u => !memberIds.includes(u.id));
 
   const select = document.getElementById('addMemberUserId');
   if (available.length === 0) {
@@ -1716,75 +1666,314 @@ async function openAddMemberModal() {
 }
 
 async function addMember() {
-  const userId = parseInt(document.getElementById('addMemberUserId').value);
-  const role = document.getElementById('addMemberRole').value;
-
+  const userId = document.getElementById('addMemberUserId').value;
   if (!userId) return;
 
+  const role = document.getElementById('addMemberRole').value;
   const result = await apiCall('addMember', {
     projectId: currentProjectId,
-    userId,
+    userId: parseInt(userId),
     role
   });
 
   if (result.success) {
     closeModal('addMemberModal');
     await loadProjectsFromServer();
-    // Reload users list for rendering names
-    const usersResult = await apiCall('getUsers');
-    if (usersResult.success) users = usersResult.data;
-    renderMembers();
+    const project = projects.find(p => p.id === currentProjectId);
+    if (project) renderMembers(project);
+    showToast(t('members.title'), result.message, 'success');
   } else {
-    showToast(result.message || t('members.add_error'), 'error');
+    showToast(t('members.add_error'), result.message || t('members.add_error'), 'error');
   }
 }
 
-async function removeMember(userId) {
-  if (!confirm(t('members.remove_confirm'))) return;
+async function removeMember(projectId, userId) {
+  if (!await showConfirm(t('members.remove_confirm'), { icon: '🗑️', title: t('members.remove_btn') })) return;
 
-  const result = await apiCall('removeMember', {
-    projectId: currentProjectId,
-    userId
+  const result = await apiCall('removeMember', { projectId, userId });
+  if (result.success) {
+    await loadProjectsFromServer();
+    const project = projects.find(p => p.id === projectId);
+    if (project) renderMembers(project);
+    showToast(t('members.title'), result.message, 'success');
+  } else {
+    showToast(t('members.remove_error'), result.message || t('members.remove_error'), 'error');
+  }
+}
+
+async function updateMemberRole(projectId, userId, newRole) {
+  const result = await apiCall('updateMemberRole', { projectId, userId, role: newRole });
+  if (result.success) {
+    await loadProjectsFromServer();
+    const project = projects.find(p => p.id === projectId);
+    if (project) renderMembers(project);
+  } else {
+    showToast(t('members.role_error'), result.message || t('members.role_error'), 'error');
+  }
+}
+
+function renderMembers(project) {
+  const container = document.getElementById('membersList');
+  const addBtn = document.getElementById('addMemberBtn');
+  if (!container) return;
+
+  const members = project.members || [];
+  const isAdmin = currentUser.role === 'admin';
+  const isOwner = members.some(m => m.userId === currentUser.id && m.role === 'owner');
+  const canManage = isAdmin || isOwner;
+
+  if (addBtn) addBtn.style.display = canManage ? '' : 'none';
+
+  const roleLabels = {
+    owner: t('members.role_owner'),
+    editor: t('members.role_editor'),
+    viewer: t('members.role_viewer')
+  };
+  const roleIcons = { owner: '👑', editor: '✏️', viewer: '👁️' };
+
+  container.innerHTML = members.map(m => {
+    const isMe = m.userId === currentUser.id;
+    const memberName = m.userName || m.username || `User #${m.userId}`;
+    const nextRole = m.role === 'editor' ? 'viewer' : 'editor';
+    const roleColor = m.role === 'owner' ? 'var(--warning)' : m.role === 'editor' ? 'var(--primary)' : 'var(--text-muted)';
+
+    return `
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)">
+        <div class="user-avatar" style="width:32px;height:32px;font-size:13px">${escapeHtml(memberName.charAt(0).toUpperCase())}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:600;font-size:13px">${escapeHtml(memberName)}${isMe ? ' <span style="color:var(--text-muted);font-weight:400;font-size:11px">' + escapeHtml(t('members.you')) + '</span>' : ''}</div>
+        </div>
+        ${canManage && m.role !== 'owner' ? `
+          <button onclick="updateMemberRole(${project.id},${m.userId},'${nextRole}')" style="height:28px;font-size:12px;padding:0 10px;border-radius:14px;background:${roleColor}18;color:${roleColor};border:1px solid ${roleColor}40;cursor:pointer;transition:all .15s;font-weight:500;line-height:26px" title="${escapeHtml(t('users.change_role'))}">${roleIcons[m.role]} ${escapeHtml(roleLabels[m.role])}</button>
+          <button onclick="removeMember(${project.id},${m.userId})" style="height:28px;width:28px;padding:0;border-radius:14px;border:1px solid var(--danger);background:transparent;color:var(--danger);cursor:pointer;font-size:12px;transition:all .15s;display:flex;align-items:center;justify-content:center" onmouseover="this.style.background='var(--danger)';this.style.color='#fff'" onmouseout="this.style.background='transparent';this.style.color='var(--danger)'">🗑️</button>
+        ` : `
+          <span style="height:28px;font-size:12px;padding:0 10px;border-radius:14px;background:${roleColor}18;color:${roleColor};font-weight:500;line-height:28px;display:inline-block">${roleIcons[m.role]} ${escapeHtml(roleLabels[m.role])}</span>
+        `}
+      </div>
+    `;
+  }).join('');
+}
+
+// Manage Members Modal (standalone, works from project cards)
+let manageMembersProjectId = null;
+
+async function openManageMembersModal(projectId) {
+  manageMembersProjectId = projectId;
+  const project = projects.find(p => p.id === projectId);
+  if (!project) return;
+
+  renderManageMembersModal(project);
+
+  // Load available users for the add dropdown
+  const result = await apiCall('getAllUsers');
+  if (result.success) {
+    const allUsers = result.data || [];
+    const memberIds = (project.members || []).map(m => m.userId);
+    const available = allUsers.filter(u => !memberIds.includes(u.id));
+
+    const select = document.getElementById('manageMemberUserId');
+    const addSection = document.getElementById('manageMembersAdd');
+    if (available.length === 0) {
+      select.innerHTML = `<option value="">${escapeHtml(t('members.no_users'))}</option>`;
+    } else {
+      select.innerHTML = available.map(u =>
+        `<option value="${u.id}">${escapeHtml(u.name)} (@${escapeHtml(u.username)})</option>`
+      ).join('');
+    }
+  }
+
+  document.getElementById('manageMembersModal').classList.add('active');
+}
+
+function renderManageMembersModal(project) {
+  const container = document.getElementById('manageMembersList');
+  const addSection = document.getElementById('manageMembersAdd');
+  if (!container) return;
+
+  const members = project.members || [];
+  const isAdmin = currentUser.role === 'admin';
+  const isOwner = members.some(m => m.userId === currentUser.id && m.role === 'owner');
+  const canManage = isAdmin || isOwner;
+
+  if (addSection) addSection.style.display = canManage ? '' : 'none';
+
+  const roleLabels = {
+    owner: t('members.role_owner'),
+    editor: t('members.role_editor'),
+    viewer: t('members.role_viewer')
+  };
+  const roleIcons = { owner: '👑', editor: '✏️', viewer: '👁️' };
+
+  container.innerHTML = members.map(m => {
+    const isMe = m.userId === currentUser.id;
+    const memberName = m.userName || `User #${m.userId}`;
+    const nextRole = m.role === 'editor' ? 'viewer' : 'editor';
+    const roleColor = m.role === 'owner' ? 'var(--warning)' : m.role === 'editor' ? 'var(--primary)' : 'var(--text-muted)';
+
+    return `
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)">
+        <div class="user-avatar" style="width:32px;height:32px;font-size:13px">${escapeHtml(memberName.charAt(0).toUpperCase())}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:600;font-size:13px">${escapeHtml(memberName)}${isMe ? ' <span style="color:var(--text-muted);font-weight:400;font-size:11px">' + escapeHtml(t('members.you')) + '</span>' : ''}</div>
+        </div>
+        ${canManage && m.role !== 'owner' ? `
+          <button onclick="updateMemberFromModal(${project.id},${m.userId},'${nextRole}')" style="height:28px;font-size:12px;padding:0 10px;border-radius:14px;background:${roleColor}18;color:${roleColor};border:1px solid ${roleColor}40;cursor:pointer;transition:all .15s;font-weight:500;line-height:26px" title="${escapeHtml(t('users.change_role'))}">${roleIcons[m.role]} ${escapeHtml(roleLabels[m.role])}</button>
+          <button onclick="removeMemberFromModal(${project.id},${m.userId})" style="height:28px;width:28px;padding:0;border-radius:14px;border:1px solid var(--danger);background:transparent;color:var(--danger);cursor:pointer;font-size:12px;transition:all .15s;display:flex;align-items:center;justify-content:center" onmouseover="this.style.background='var(--danger)';this.style.color='#fff'" onmouseout="this.style.background='transparent';this.style.color='var(--danger)'">🗑️</button>
+        ` : `
+          <span style="height:28px;font-size:12px;padding:0 10px;border-radius:14px;background:${roleColor}18;color:${roleColor};font-weight:500;line-height:28px;display:inline-block">${roleIcons[m.role]} ${escapeHtml(roleLabels[m.role])}</span>
+        `}
+      </div>
+    `;
+  }).join('');
+}
+
+function selectMemberRole(role) {
+  document.getElementById('manageMemberRole').value = role;
+  document.querySelectorAll('#manageMemberRoleToggle .member-role-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.role === role);
+  });
+}
+
+async function addMemberFromModal() {
+  const userId = document.getElementById('manageMemberUserId').value;
+  if (!userId || !manageMembersProjectId) return;
+
+  const role = document.getElementById('manageMemberRole').value;
+  const result = await apiCall('addMember', {
+    projectId: manageMembersProjectId,
+    userId: parseInt(userId),
+    role
   });
 
   if (result.success) {
     await loadProjectsFromServer();
-    renderMembers();
+    const project = projects.find(p => p.id === manageMembersProjectId);
+    if (project) {
+      renderManageMembersModal(project);
+      renderMembers(project);
+      // Refresh the user dropdown
+      openManageMembersModal(manageMembersProjectId);
+    }
+    showToast(t('members.title'), result.message, 'success');
   } else {
-    showToast(result.message || t('members.remove_error'), 'error');
+    showToast(t('members.add_error'), result.message || t('members.add_error'), 'error');
   }
 }
 
-async function changeMemberRole(userId, newRole) {
-  const result = await apiCall('updateMemberRole', {
-    projectId: currentProjectId,
-    userId,
-    role: newRole
-  });
+async function removeMemberFromModal(projectId, userId) {
+  if (!await showConfirm(t('members.remove_confirm'), { icon: '🗑️', title: t('members.remove_btn') })) return;
 
+  const result = await apiCall('removeMember', { projectId, userId });
   if (result.success) {
     await loadProjectsFromServer();
-    renderMembers();
+    const project = projects.find(p => p.id === projectId);
+    if (project) {
+      renderManageMembersModal(project);
+      renderMembers(project);
+      // Refresh dropdown
+      openManageMembersModal(projectId);
+    }
+    showToast(t('members.title'), result.message, 'success');
   } else {
-    showToast(result.message || t('members.role_error'), 'error');
+    showToast(t('members.remove_error'), result.message || t('members.remove_error'), 'error');
   }
 }
 
-// Apply permission-based UI visibility
-function applyPermissionUI() {
-  const role = getCurrentProjectRole();
-  const isOwner = role === 'owner';
-  const canEdit = role === 'owner' || role === 'editor';
+async function updateMemberFromModal(projectId, userId, newRole) {
+  const result = await apiCall('updateMemberRole', { projectId, userId, role: newRole });
+  if (result.success) {
+    await loadProjectsFromServer();
+    const project = projects.find(p => p.id === projectId);
+    if (project) {
+      renderManageMembersModal(project);
+      renderMembers(project);
+    }
+  } else {
+    showToast(t('members.role_error'), result.message || t('members.role_error'), 'error');
+  }
+}
 
-  // Edit/Delete project buttons
-  const editBtn = document.querySelector('#projectDetailView .btn-ghost[onclick="editProject()"]');
-  const deleteBtn = document.querySelector('#projectDetailView .btn-danger[onclick="deleteCurrentProject()"]');
-  if (editBtn) editBtn.style.display = isOwner ? '' : 'none';
-  if (deleteBtn) deleteBtn.style.display = isOwner ? '' : 'none';
+// Notifications
+async function loadNotifications() {
+  const result = await apiCall('getNotifications');
+  if (result.success && result.data && result.data.length > 0) {
+    showPendingNotifications(result.data);
+  }
+}
 
-  // Add todo button & form
-  const todoToggle = document.getElementById('newTodoToggleBtn');
-  if (todoToggle) todoToggle.style.display = canEdit ? '' : 'none';
+async function showPendingNotifications(notifications) {
+  const ids = [];
+  notifications.forEach(n => {
+    ids.push(n.id);
+    if (n.type === 'project_added') {
+      const title = t('notifications.project_added_title');
+      const msg = t('notifications.project_added').replace('{name}', n.projectName || '');
+      showToast(title, msg, 'info');
+    }
+  });
+
+  if (ids.length > 0) {
+    await apiCall('dismissNotifications', { ids });
+  }
+}
+
+// Trash / Deleted Projects
+async function loadDeletedProjects() {
+  const container = document.getElementById('deletedProjectsList');
+  const card = document.getElementById('trashCard');
+  if (!container) return;
+
+  const result = await apiCall('getDeletedProjects');
+  if (!result.success || !result.data || result.data.length === 0) {
+    if (card) card.style.display = 'none';
+    return;
+  }
+
+  if (card) card.style.display = 'block';
+  const isAdmin = currentUser.role === 'admin';
+
+  container.innerHTML = result.data.map(p => {
+    const deletedDate = new Date(p.deletedAt).toLocaleDateString(currentLang === 'de' ? 'de-DE' : 'en-US');
+    return `
+      <div style="display:flex;align-items:center;gap:16px;padding:14px 0;border-bottom:1px solid var(--border)">
+        <div style="width:40px;height:40px;border-radius:10px;background:var(--bg-secondary);display:flex;align-items:center;justify-content:center;font-size:18px">📁</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:600;font-size:15px;color:var(--text)">${escapeHtml(p.name)}</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:2px">
+            ${escapeHtml(t('trash.deleted_by'))} ${escapeHtml(p.deletedByName)} &middot; ${deletedDate} &middot;
+            <span style="color:var(--warning);font-weight:500">${p.daysLeft} ${escapeHtml(t('trash.days_left'))}</span>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="restoreProject(${p.id})" style="font-size:13px">↩️ ${escapeHtml(t('trash.restore'))}</button>
+        ${isAdmin ? `<button class="btn btn-danger btn-sm" onclick="permanentDeleteProject(${p.id})" style="font-size:13px">🗑️ ${escapeHtml(t('trash.delete_permanent'))}</button>` : ''}
+      </div>
+    `;
+  }).join('');
+}
+
+async function restoreProject(id) {
+  const result = await apiCall('restoreProject', { id });
+  if (result.success) {
+    showToast(t('trash.title'), t('trash.restored'), 'success');
+    await loadProjectsFromServer();
+    renderDashboard();
+    renderProjects();
+    loadDeletedProjects();
+  } else {
+    showToast(t('trash.title'), result.message, 'error');
+  }
+}
+
+async function permanentDeleteProject(id) {
+  if (!await showConfirm(t('trash.confirm_permanent'), { icon: '⚠️', title: t('trash.delete_permanent') })) return;
+
+  const result = await apiCall('permanentDeleteProject', { id });
+  if (result.success) {
+    showToast(t('trash.title'), result.message, 'success');
+    loadDeletedProjects();
+  } else {
+    showToast(t('trash.title'), result.message, 'error');
+  }
 }
 
 // Start app

@@ -20,11 +20,11 @@
 - User login & registration
 - Create and manage projects with color coding
 - To-do lists with categories, priorities, and due dates
-- Kanban board with drag & drop
+- Kanban board with drag & drop (default view)
 - Drag & drop task reordering in list view
 - Global search across projects and tasks
 - Dark mode (auto-detects system preference)
-- 6 color themes
+- 6 color themes with per-user preferences
 - Activity log on dashboard
 - Archive function for completed tasks
 - Export/Import as JSON
@@ -32,6 +32,13 @@
 - Dynamic animations & smooth transitions
 - Multi-language support (DE/EN)
 - Setup wizard for easy first-time installation
+- User roles (Admin/User) and project permissions
+- Project member management (Owner/Editor/Viewer) with quick access from project cards
+- Toast notifications (replaces browser dialogs)
+- Notification system (e.g. when added to a project)
+- Soft-delete with 30-day trash & restore
+- Custom confirm dialogs (no browser popups)
+- Automatic data migration system for seamless updates
 
 ## Requirements
 
@@ -136,11 +143,11 @@ See [LICENSE](LICENSE) for full details. Free to use, modify, and distribute —
 - Benutzer-Login & Registrierung
 - Projekte erstellen und verwalten mit Farbmarkierung
 - To-Do-Listen mit Kategorien, Prioritäten und Fälligkeitsdaten
-- Kanban Board mit Drag & Drop
+- Kanban Board mit Drag & Drop (Standardansicht)
 - Drag & Drop Sortierung in der Listenansicht
 - Globale Suche über Projekte und Aufgaben
 - Dunkelmodus (erkennt System-Einstellung automatisch)
-- 6 verschiedene Farbthemen
+- 6 verschiedene Farbthemen mit benutzerspezifischen Einstellungen
 - Aktivitäts-Log im Dashboard
 - Archiv-Funktion für erledigte Aufgaben
 - Export/Import als JSON
@@ -148,6 +155,13 @@ See [LICENSE](LICENSE) for full details. Free to use, modify, and distribute —
 - Dynamische Animationen & sanfte Übergänge
 - Mehrsprachig (DE/EN)
 - Setup-Assistent für einfache Erstinstallation
+- Benutzerrollen (Admin/User) und Projekt-Berechtigungen
+- Projekt-Mitgliederverwaltung (Eigentümer/Bearbeiter/Betrachter) mit Schnellzugriff auf Projektkacheln
+- Toast-Benachrichtigungen (ersetzt Browser-Dialoge)
+- Benachrichtigungssystem (z.B. bei Projektzuweisung)
+- Soft-Delete mit 30-Tage-Papierkorb & Wiederherstellung
+- Eigene Bestätigungsdialoge (keine Browser-Popups)
+- Automatisches Daten-Migrationssystem für nahtlose Updates
 
 ### Voraussetzungen
 

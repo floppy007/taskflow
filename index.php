@@ -828,21 +828,46 @@ if (!file_exists(__DIR__ . '/data/users.json') && file_exists(__DIR__ . '/instal
     box-shadow:0 8px 16px rgba(102,126,234,.3);
   }
 
-  .project-menu {
+  .member-role-btn {
+    background:var(--bg-secondary);
+    color:var(--text-muted);
+  }
+  .member-role-btn.active {
+    background:var(--primary);
+    color:#fff;
+  }
+  .member-role-btn:hover:not(.active) {
+    background:var(--border);
+  }
+
+  .project-card-actions {
+    position:absolute;
+    top:12px;
+    right:12px;
+    display:flex;
+    gap:6px;
+    z-index:2;
+  }
+
+  .project-action-btn {
     background:transparent;
-    border:none;
+    border:1px solid var(--border);
     color:var(--text-muted);
     cursor:pointer;
     padding:6px 10px;
     border-radius:8px;
     transition:all .2s;
-    font-size:20px;
+    font-size:15px;
   }
 
-  .project-menu:hover {
-    background:var(--bg-secondary);
-    color:var(--text);
-    transform:rotate(90deg);
+  .project-action-btn:hover {
+    transform:scale(1.1);
+  }
+
+  .project-action-btn.btn-members:hover {
+    background:var(--primary);
+    color:#fff;
+    border-color:var(--primary);
   }
 
   .project-title {
@@ -1296,6 +1321,31 @@ if (!file_exists(__DIR__ . '/data/users.json') && file_exists(__DIR__ . '/instal
   .badge-category {
     background:var(--bg-secondary);
     color:var(--text);
+  }
+
+  .badge-admin {
+    background:linear-gradient(135deg,var(--primary),var(--accent));
+    color:#fff;
+    padding:4px 10px;
+    border-radius:8px;
+    font-size:12px;
+    font-weight:600;
+    display:inline-flex;
+    align-items:center;
+    gap:4px;
+  }
+
+  .badge-user {
+    background:var(--bg-secondary);
+    color:var(--text-muted);
+    padding:4px 10px;
+    border-radius:8px;
+    font-size:12px;
+    font-weight:600;
+    display:inline-flex;
+    align-items:center;
+    gap:4px;
+    border:1px solid var(--border);
   }
 
   .badge-priority {
@@ -1787,9 +1837,9 @@ if (!file_exists(__DIR__ . '/data/users.json') && file_exists(__DIR__ . '/instal
         </div>
       </div>
 
-      <div class="nav-section">
+      <div class="nav-section" id="navManagement">
         <div class="nav-section-title" data-i18n="nav.management">Verwaltung</div>
-        <div class="nav-item" onclick="showUsers()">
+        <div class="nav-item" id="navUsersItem" onclick="showUsers()">
           <span class="nav-icon">👥</span>
           <span data-i18n="nav.users">Benutzer</span>
         </div>
@@ -1805,7 +1855,7 @@ if (!file_exists(__DIR__ . '/data/users.json') && file_exists(__DIR__ . '/instal
         <div class="user-avatar" id="userAvatar">U</div>
         <div class="user-info">
           <div class="user-name" id="userName">User</div>
-          <div class="user-role">Admin</div>
+          <div class="user-role" id="userRole">Admin</div>
         </div>
         <button class="user-menu-btn" onclick="logout()" data-i18n-title="nav.logout_title" title="Abmelden">⎋</button>
       </div>
@@ -1901,6 +1951,17 @@ if (!file_exists(__DIR__ . '/data/users.json') && file_exists(__DIR__ . '/instal
         </div>
 
         <div class="projects-grid" id="projectsList"></div>
+
+        <!-- Trash: Deleted Projects (visible for all users) -->
+        <div class="card" id="trashCard" style="margin-top:24px;display:none">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+            <div>
+              <h3 class="card-title" style="margin-bottom:4px">🗑️ <span data-i18n="trash.title">Papierkorb</span></h3>
+              <p style="font-size:13px;color:var(--text-muted);margin:0" data-i18n="trash.subtitle">Gelöschte Projekte (30 Tage aufbewahrt)</p>
+            </div>
+          </div>
+          <div id="deletedProjectsList"></div>
+        </div>
       </div>
 
       <!-- Users View -->
@@ -1938,6 +1999,13 @@ if (!file_exists(__DIR__ . '/data/users.json') && file_exists(__DIR__ . '/instal
               </select>
             </div>
           </div>
+          <div class="form-group">
+            <label class="form-label" data-i18n="users.role">Rolle</label>
+            <select class="form-input" id="newUserRole">
+              <option value="user" data-i18n="users.role_user">Benutzer</option>
+              <option value="admin" data-i18n="users.role_admin">Admin</option>
+            </select>
+          </div>
           <div style="display:flex;gap:12px">
             <button class="btn btn-primary btn-sm" onclick="createUser()"><span data-i18n="users.create_submit">Benutzer erstellen</span></button>
             <button class="btn btn-ghost btn-sm" onclick="closeCreateUserForm()"><span data-i18n="modal.cancel">Abbrechen</span></button>
@@ -1947,6 +2015,7 @@ if (!file_exists(__DIR__ . '/data/users.json') && file_exists(__DIR__ . '/instal
         <div class="card">
           <div id="usersList"></div>
         </div>
+
       </div>
 
       <!-- Project Detail View -->
@@ -2087,7 +2156,7 @@ if (!file_exists(__DIR__ . '/data/users.json') && file_exists(__DIR__ . '/instal
         <div class="card" id="membersCard">
           <div class="card-header">
             <h3 class="card-title" data-i18n="members.title">Mitglieder</h3>
-            <button class="btn btn-primary btn-sm" id="addMemberBtn" onclick="openAddMemberModal()" data-i18n="members.add_btn">+ Mitglied hinzufügen</button>
+            <button class="btn btn-primary btn-sm" id="addMemberBtn" onclick="openManageMembersModal(currentProjectId)" data-i18n="members.add_btn">+ Mitglied hinzufügen</button>
           </div>
           <div id="membersList"></div>
         </div>
@@ -2306,7 +2375,45 @@ if (!file_exists(__DIR__ . '/data/users.json') && file_exists(__DIR__ . '/instal
 
 <div class="toast-container" id="toastContainer"></div>
 
+<!-- Custom Confirm Modal -->
+<div class="modal" id="confirmModal">
+  <div class="modal-content" style="max-width:420px">
+    <div style="text-align:center;padding:8px 0">
+      <div id="confirmIcon" style="font-size:48px;margin-bottom:12px">⚠️</div>
+      <h3 id="confirmTitle" style="margin:0 0 8px;font-size:18px;font-weight:700;color:var(--text)"></h3>
+      <p id="confirmMessage" style="margin:0 0 24px;font-size:14px;color:var(--text-muted);line-height:1.5"></p>
+      <div style="display:flex;gap:10px;justify-content:center">
+        <button class="btn btn-danger" id="confirmYesBtn" style="min-width:120px"></button>
+        <button class="btn btn-ghost" id="confirmNoBtn" style="min-width:120px"></button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Add Member Modal -->
+<!-- Manage Members Modal -->
+<div class="modal" id="manageMembersModal">
+  <div class="modal-content" style="max-width:520px">
+    <div class="modal-header">
+      <h2 class="modal-title">👥 <span data-i18n="members.title">Mitglieder</span></h2>
+      <button class="modal-close" onclick="closeModal('manageMembersModal')">×</button>
+    </div>
+    <div id="manageMembersList" style="max-height:320px;overflow-y:auto"></div>
+    <div id="manageMembersAdd" style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+      <div style="font-weight:600;font-size:13px;margin-bottom:8px" data-i18n="members.add_title">Mitglied hinzufügen</div>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+        <select id="manageMemberUserId" style="flex:1;min-width:140px;padding:7px 10px;font-size:13px;font-family:inherit;border:1px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);outline:none"></select>
+        <div id="manageMemberRoleToggle" style="display:inline-flex;border-radius:8px;overflow:hidden;border:1px solid var(--border);height:34px">
+          <button type="button" class="member-role-btn active" data-role="editor" onclick="selectMemberRole('editor')" style="padding:0 10px;font-size:12px;border:none;cursor:pointer;font-weight:500;transition:all .15s;line-height:34px">✏️ <span data-i18n="members.role_editor">Bearbeiter</span></button>
+          <button type="button" class="member-role-btn" data-role="viewer" onclick="selectMemberRole('viewer')" style="padding:0 10px;font-size:12px;border:none;border-left:1px solid var(--border);cursor:pointer;font-weight:500;transition:all .15s;line-height:34px">👁️ <span data-i18n="members.role_viewer">Betrachter</span></button>
+        </div>
+        <input type="hidden" id="manageMemberRole" value="editor">
+        <button class="btn btn-primary btn-sm" onclick="addMemberFromModal()" style="white-space:nowrap;padding:7px 14px;font-size:13px" data-i18n="members.add_submit">Hinzufügen</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal" id="addMemberModal">
   <div class="modal-content">
     <div class="modal-header">
