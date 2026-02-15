@@ -2034,15 +2034,6 @@ if (!file_exists(__DIR__ . '/data/users.json') && file_exists(__DIR__ . '/instal
           </div>
         </div>
 
-        <div class="card">
-          <h3 class="card-title" style="margin-bottom:12px" data-i18n="settings.darkmode_title">Dunkelmodus</h3>
-          <p style="color:var(--text-muted);margin-bottom:12px" data-i18n="settings.darkmode_desc">Dunkle Hintergründe für alle Farbthemen</p>
-          <label style="display:flex;align-items:center;gap:12px;cursor:pointer">
-            <input type="checkbox" id="darkModeCheckbox" onchange="toggleDarkMode()">
-            <span data-i18n="settings.darkmode_toggle">Dunkelmodus aktivieren</span>
-          </label>
-        </div>
-
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
           <div class="card" style="margin-bottom:0">
             <h3 class="card-title" style="margin-bottom:12px" data-i18n="settings.backup_title">Daten-Backup</h3>
