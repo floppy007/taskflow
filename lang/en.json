@@ -185,8 +185,11 @@
   "modal.project_name_placeholder": "e.g. Website Redesign",
   "modal.project_desc": "Description",
   "modal.project_desc_placeholder": "Short description of the project",
+  "modal.project_color": "Color",
   "modal.create": "Create project",
   "modal.cancel": "Cancel",
+  "modal.edit_project": "Edit Project",
+  "modal.save": "Save",
 
   "kanban.col_todo": "To Do",
   "kanban.col_inprogress": "In Progress",
