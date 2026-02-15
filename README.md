@@ -1,92 +1,106 @@
-# TaskFlow - Projekt & Aufgabenverwaltung
+<p align="center">
+  <img src="logo.png" alt="TaskFlow" width="400">
+</p>
 
-Moderne Projekt-Management-Anwendung mit PHP-Backend und JSON-Dateispeicherung.
+<p align="center">
+  <strong>Project & Task Management</strong><br>
+  Modern project management app with PHP backend and JSON file storage.
+</p>
 
-## 🚀 Features
+---
 
-- ✅ Benutzer-Login & Registrierung
-- 📁 Projekte erstellen und verwalten
-- ✓ To-Do-Listen mit Kategorien und Prioritäten
-- 🎨 6 verschiedene Farbthemen
-- 📦 Archiv-Funktion für erledigte Aufgaben
-- 📤 Export/Import als JSON
-- 💾 Daten werden in JSON-Dateien gespeichert
+## Features
 
-## 📋 Voraussetzungen
+- User login & registration
+- Create and manage projects
+- To-do lists with categories and priorities
+- 6 color themes
+- Archive function for completed tasks
+- Export/Import as JSON
+- In-app update system (git pull)
+- Dynamic animations & smooth transitions
+- Multi-language support (DE/EN)
 
-- PHP 7.4 oder höher
-- Webserver (Apache, Nginx, oder PHP Built-in Server)
-- Schreibrechte für das `/data` Verzeichnis
+## Requirements
 
-## 🛠️ Installation
+- PHP 7.4 or higher
+- Web server (Apache, Nginx, or PHP built-in server)
+- Write permissions for the `/data` directory
 
-### Variante 1: Mit Apache/Nginx
+## Installation
 
-1. Projekt in den Webserver-Ordner kopieren:
+### Option 1: With Apache/Nginx
+
+1. Copy the project to your web server directory:
    ```bash
-   cp -r taskflow-php /var/www/html/taskflow
+   cp -r taskflow /var/www/html/taskflow
    ```
 
-2. Schreibrechte für data-Ordner setzen:
+2. Set write permissions for the data folder:
    ```bash
    chmod 755 /var/www/html/taskflow/data
    ```
 
-3. Im Browser öffnen:
+3. Open in your browser:
    ```
    http://localhost/taskflow
    ```
 
-### Variante 2: Mit PHP Built-in Server (Entwicklung)
+### Option 2: PHP Built-in Server (Development)
 
-1. In das Projekt-Verzeichnis wechseln:
+1. Navigate to the project directory:
    ```bash
-   cd taskflow-php
+   cd taskflow
    ```
 
-2. PHP Server starten:
+2. Start the PHP server:
    ```bash
    php -S localhost:8000
    ```
 
-3. Im Browser öffnen:
+3. Open in your browser:
    ```
    http://localhost:8000
    ```
 
-## 👤 Standard-Login
+## Default Login
 
-- **Benutzername:** admin
-- **Passwort:** admin
+- **Username:** admin
+- **Password:** admin
 
-## 📁 Dateistruktur
+## File Structure
 
 ```
-taskflow-php/
-├── index.php          # Haupt-Anwendung (HTML/CSS)
-├── app.js             # Frontend-Logik (JavaScript)
-├── api.php            # Backend-API
-├── data/              # JSON-Datenspeicher
-│   ├── users.json     # Benutzerdaten
-│   └── projects.json  # Projekte & To-Dos
-└── README.md          # Diese Datei
+taskflow/
+├── index.php          # Main application (HTML/CSS)
+├── app.js             # Frontend logic (JavaScript)
+├── api.php            # Backend API
+├── version.json       # Version info for update system
+├── logo.png           # Application logo
+├── lang/
+│   ├── de.json        # German translations
+│   └── en.json        # English translations
+├── data/              # JSON data storage
+│   ├── users.json     # User data
+│   └── projects.json  # Projects & to-dos
+└── README.md
 ```
 
-## 🔒 Sicherheit
+## Security
 
-**WICHTIG:** Für Produktiv-Einsatz:
+**IMPORTANT:** For production use:
 
-1. **Passwörter ändern:** Standard-Admin-Passwort ändern!
+1. **Change passwords:** Change the default admin password!
 
-2. **HTTPS verwenden:** Niemals über HTTP in Produktion!
+2. **Use HTTPS:** Never run over HTTP in production!
 
-3. **data-Ordner schützen:** 
+3. **Protect the data folder:**
    ```apache
    # .htaccess in /data
    Deny from all
    ```
 
-4. **Session-Sicherheit:** In `api.php` Session-Settings anpassen:
+4. **Session security:** Adjust session settings in `api.php`:
    ```php
    session_set_cookie_params([
        'secure' => true,
@@ -95,66 +109,43 @@ taskflow-php/
    ]);
    ```
 
-## 📤 Backup
+## API Endpoints
 
-Die JSON-Dateien im `/data` Ordner können einfach kopiert werden:
+All requests to `api.php?action=...`:
 
-```bash
-# Backup erstellen
-cp -r data data_backup_$(date +%Y%m%d)
+| Action | Description |
+|--------|-------------|
+| `login` | User login |
+| `register` | Create new user |
+| `logout` | Sign out |
+| `getSession` | Check current session |
+| `getUsers` | Get all users |
+| `createUser` | Create user (admin) |
+| `deleteUser` | Delete user (admin) |
+| `changePassword` | Change password |
+| `getProjects` | Get all projects |
+| `createProject` | Create new project |
+| `updateProject` | Edit project |
+| `deleteProject` | Delete project |
+| `addTodo` | Add to-do |
+| `updateTodo` | Update to-do |
+| `deleteTodo` | Delete to-do |
+| `exportData` | Export data |
+| `importData` | Import data |
+| `getVersion` | Get current version |
+| `checkUpdate` | Check for updates |
+| `doUpdate` | Install update (git pull) |
 
-# Oder über die App: Einstellungen → Export
-```
+## Updates
 
-## 🐛 Troubleshooting
+TaskFlow includes a built-in update system. Go to **Settings > Updates** and click "Check for update". If a new version is available, click "Install update" to pull the latest changes from GitHub.
 
-**Problem:** "Permission denied" beim Speichern
-- **Lösung:** `chmod 755 data` ausführen
+User data (`data/users.json`, `data/projects.json`) is excluded from updates via `.gitignore`.
 
-**Problem:** "Session konnte nicht gestartet werden"
-- **Lösung:** PHP Session-Verzeichnis prüfen (`session.save_path`)
+## License
 
-**Problem:** API gibt keine Antwort
-- **Lösung:** Fehler-Log prüfen, PHP-Version checken
-
-## 📝 API-Endpoints
-
-Alle Anfragen an `api.php?action=...`:
-
-- `login` - Benutzer anmelden
-- `register` - Neuen Benutzer erstellen
-- `logout` - Abmelden
-- `getSession` - Aktuelle Session prüfen
-- `getUsers` - Alle Benutzer abrufen
-- `getProjects` - Alle Projekte abrufen
-- `createProject` - Neues Projekt erstellen
-- `updateProject` - Projekt bearbeiten
-- `deleteProject` - Projekt löschen
-- `addTodo` - To-Do hinzufügen
-- `updateTodo` - To-Do aktualisieren
-- `deleteTodo` - To-Do löschen
-- `exportData` - Daten exportieren
-- `importData` - Daten importieren
-
-## 💡 Tipps
-
-- **Themes wechseln:** Einstellungen → Farbschema
-- **Projekte archivieren:** Aufgaben als "erledigt" markieren, dann archivieren
-- **Backup:** Regelmäßig über "Export" sichern
-
-## 🔧 Anpassungen
-
-**Farbschemas anpassen:** In `index.php` die CSS-Variablen unter `:root` ändern
-
-**Standard-Port ändern:** 
-```bash
-php -S localhost:3000
-```
-
-## 📜 Lizenz
-
-Frei verwendbar für persönliche und kommerzielle Projekte.
+Copyright (c) 2026 Florian Hesse. All rights reserved.
 
 ---
 
-**Viel Erfolg mit TaskFlow! 🚀**
+**Made with TaskFlow**
