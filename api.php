@@ -628,7 +628,7 @@ switch ($action) {
         }
 
         $rawUrl = str_replace('github.com', 'raw.githubusercontent.com', $repoUrl);
-        $rawUrl = rtrim($rawUrl, '/') . '/main/version.json';
+        $rawUrl = rtrim($rawUrl, '/') . '/master/version.json';
 
         $ctx = stream_context_create(['http' => ['timeout' => 10, 'header' => 'User-Agent: TaskFlow-Updater']]);
         $remoteJson = @file_get_contents($rawUrl, false, $ctx);
