@@ -77,6 +77,12 @@
   "users.delete_btn": "Benutzer l\u00f6schen",
   "users.delete_confirm": "Benutzer wirklich l\u00f6schen?",
   "users.delete_error": "Fehler beim L\u00f6schen des Benutzers",
+  "users.role": "Rolle",
+  "users.role_admin": "Admin",
+  "users.role_user": "Benutzer",
+  "users.change_role": "Rolle \u00e4ndern",
+  "users.last_admin": "Letzter Admin kann nicht ge\u00e4ndert werden",
+  "users.no_permission": "Keine Berechtigung",
 
   "project_detail.back": "\u2190 Zur\u00fcck zu Projekten",
   "project_detail.edit": "Bearbeiten",
@@ -193,6 +199,7 @@
   "modal.cancel": "Abbrechen",
   "modal.edit_project": "Projekt bearbeiten",
   "modal.save": "Speichern",
+  "modal.confirm_title": "Best\u00e4tigung",
 
   "kanban.col_todo": "Zu erledigen",
   "kanban.col_inprogress": "In Bearbeitung",
@@ -218,6 +225,19 @@
   "members.remove_error": "Fehler beim Entfernen",
   "members.role_error": "Fehler beim \u00c4ndern der Rolle",
   "members.you": "(Du)",
+
+  "trash.title": "Papierkorb",
+  "trash.subtitle": "Gel\u00f6schte Projekte (30 Tage aufbewahrt)",
+  "trash.empty": "Keine gel\u00f6schten Projekte",
+  "trash.deleted_by": "Gel\u00f6scht von",
+  "trash.days_left": "Tage verbleibend",
+  "trash.restore": "Wiederherstellen",
+  "trash.delete_permanent": "Endg\u00fcltig l\u00f6schen",
+  "trash.confirm_permanent": "Projekt endg\u00fcltig l\u00f6schen? Dies kann nicht r\u00fcckg\u00e4ngig gemacht werden!",
+  "trash.restored": "Projekt wiederhergestellt",
+
+  "notifications.project_added": "Du wurdest zum Projekt \"{name}\" hinzugef\u00fcgt",
+  "notifications.project_added_title": "Neues Projekt",
 
   "activity.title": "Letzte Aktivit\u00e4ten",
   "activity.empty": "Noch keine Aktivit\u00e4ten",

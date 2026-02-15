@@ -77,6 +77,12 @@
   "users.delete_btn": "Delete user",
   "users.delete_confirm": "Really delete this user?",
   "users.delete_error": "Error deleting user",
+  "users.role": "Role",
+  "users.role_admin": "Admin",
+  "users.role_user": "User",
+  "users.change_role": "Change role",
+  "users.last_admin": "Last admin cannot be changed",
+  "users.no_permission": "No permission",
 
   "project_detail.back": "\u2190 Back to projects",
   "project_detail.edit": "Edit",
@@ -193,6 +199,7 @@
   "modal.cancel": "Cancel",
   "modal.edit_project": "Edit Project",
   "modal.save": "Save",
+  "modal.confirm_title": "Confirmation",
 
   "kanban.col_todo": "To Do",
   "kanban.col_inprogress": "In Progress",
@@ -218,6 +225,19 @@
   "members.remove_error": "Error removing member",
   "members.role_error": "Error changing role",
   "members.you": "(You)",
+
+  "trash.title": "Trash",
+  "trash.subtitle": "Deleted projects (kept for 30 days)",
+  "trash.empty": "No deleted projects",
+  "trash.deleted_by": "Deleted by",
+  "trash.days_left": "days remaining",
+  "trash.restore": "Restore",
+  "trash.delete_permanent": "Delete permanently",
+  "trash.confirm_permanent": "Permanently delete this project? This cannot be undone!",
+  "trash.restored": "Project restored",
+
+  "notifications.project_added": "You were added to the project \"{name}\"",
+  "notifications.project_added_title": "New Project",
 
   "activity.title": "Recent Activity",
   "activity.empty": "No activity yet",
