@@ -1914,10 +1914,10 @@ if (!file_exists(__DIR__ . '/data/users.json') && file_exists(__DIR__ . '/instal
               <div>
                 <label class="form-label" data-i18n="todos.category">Kategorie</label>
                 <select class="form-input" id="newTodoCategory">
-                  <option value="Development">💻 Development</option>
+                  <option value="Development">💻 Dev</option>
                   <option value="Design">🎨 Design</option>
                   <option value="Content">📝 Content</option>
-                  <option value="Testing">🧪 Testing</option>
+                  <option value="Testing">🧪 Test</option>
                   <option value="Meeting">👥 Meeting</option>
                   <option value="Other" data-i18n="todos.cat_other">📌 Sonstiges</option>
                 </select>
@@ -1951,10 +1951,10 @@ if (!file_exists(__DIR__ . '/data/users.json') && file_exists(__DIR__ . '/instal
             <div style="display:flex;gap:8px;flex-wrap:wrap">
               <select class="form-input" id="filterCategory" onchange="renderProjectTodos()" style="width:auto;padding:8px 12px;font-size:13px">
                 <option value="all" data-i18n="todos.filter_all_categories">Alle Kategorien</option>
-                <option value="Development">💻 Development</option>
+                <option value="Development">💻 Dev</option>
                 <option value="Design">🎨 Design</option>
                 <option value="Content">📝 Content</option>
-                <option value="Testing">🧪 Testing</option>
+                <option value="Testing">🧪 Test</option>
                 <option value="Meeting">👥 Meeting</option>
                 <option value="Other" data-i18n="todos.cat_other">📌 Sonstiges</option>
               </select>
@@ -2126,10 +2126,10 @@ if (!file_exists(__DIR__ . '/data/users.json') && file_exists(__DIR__ . '/instal
       <div>
         <label class="form-label" data-i18n="todos.category">Kategorie</label>
         <select class="form-input" id="editTodoCategory">
-          <option value="Development">💻 Development</option>
+          <option value="Development">💻 Dev</option>
           <option value="Design">🎨 Design</option>
           <option value="Content">📝 Content</option>
-          <option value="Testing">🧪 Testing</option>
+          <option value="Testing">🧪 Test</option>
           <option value="Meeting">👥 Meeting</option>
           <option value="Other" data-i18n="todos.cat_other">📌 Sonstiges</option>
         </select>
