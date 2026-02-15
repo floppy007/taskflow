@@ -104,6 +104,8 @@
   "todos.filter_done": "Erledigt",
   "todos.view_active": "Aktiv",
   "todos.view_archive": "Archiv",
+  "todos.edit_title": "Aufgabe bearbeiten",
+  "todos.edit_save": "Speichern",
   "todos.edit_btn": "Bearbeiten",
   "todos.archive_btn": "Archivieren",
   "todos.restore_btn": "Wiederherstellen",

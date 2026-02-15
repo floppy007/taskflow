@@ -865,32 +865,47 @@ async function toggleTodo(todoId) {
   }
 }
 
-async function editTodo(todoId) {
+function editTodo(todoId) {
   const project = projects.find(p => p.id === currentProjectId);
   if (!project) return;
 
   const todo = (project.todos || []).find(t => t.id === todoId);
   if (!todo) return;
 
-  const newText = prompt(t('todos.prompt_text'), todo.text);
-  if (!newText || !newText.trim()) return;
+  document.getElementById('editTodoId').value = todoId;
+  document.getElementById('editTodoText').value = todo.text;
+  document.getElementById('editTodoCategory').value = todo.category || 'Other';
+  document.getElementById('editTodoPriority').value = todo.priority || 'medium';
+  document.getElementById('editTodoDueDate').value = todo.dueDate || '';
+  document.getElementById('editTodoNote').value = todo.note || '';
 
-  const newNote = prompt(t('todos.prompt_note'), todo.note);
-  const newDueDate = prompt(t('todos.prompt_due_date'), todo.dueDate || '');
+  document.getElementById('editTodoModal').classList.add('active');
+  document.getElementById('editTodoText').focus();
+}
+
+async function saveEditTodo() {
+  const todoId = parseInt(document.getElementById('editTodoId').value);
+  const text = document.getElementById('editTodoText').value.trim();
+  if (!text) { alert(t('todos.alert_required')); return; }
 
   const result = await apiCall('updateTodo', {
     projectId: currentProjectId,
     todoId,
     updates: {
-      text: newText.trim(),
-      note: newNote !== null ? newNote.trim() : todo.note,
-      dueDate: newDueDate || null
+      text,
+      category: document.getElementById('editTodoCategory').value,
+      priority: document.getElementById('editTodoPriority').value,
+      dueDate: document.getElementById('editTodoDueDate').value || null,
+      note: document.getElementById('editTodoNote').value.trim()
     }
   });
 
   if (result.success) {
+    closeModal('editTodoModal');
     await loadProjectsFromServer();
     renderProjectTodos();
+    if (currentProjectView === 'kanban') renderKanbanBoard();
+    renderDashboard();
   }
 }
 
