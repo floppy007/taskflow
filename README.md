@@ -56,13 +56,29 @@ git clone https://github.com/floppy007/taskflow.git
 cd taskflow
 ```
 
-In `docker-compose.yml` die Admin-Zugangsdaten anpassen:
+Die `docker-compose.yml` anpassen (Admin-Passwort ändern!):
 
 ```yaml
-environment:
-  - TASKFLOW_ADMIN_USER=admin
-  - TASKFLOW_ADMIN_PASS=dein-sicheres-passwort
-  - TASKFLOW_ADMIN_NAME=Administrator
+version: "3.8"
+
+services:
+  taskflow:
+    image: floppy001/taskflow:latest
+    container_name: taskflow
+    ports:
+      - "8080:80"
+    volumes:
+      - taskflow-data:/var/www/html/data
+    environment:
+      - TZ=Europe/Berlin
+      # Admin-Account (wird nur beim ersten Start erstellt)
+      - TASKFLOW_ADMIN_USER=admin
+      - TASKFLOW_ADMIN_PASS=dein-sicheres-passwort
+      - TASKFLOW_ADMIN_NAME=Administrator
+    restart: unless-stopped
+
+volumes:
+  taskflow-data:
 ```
 
 ```bash
@@ -207,13 +223,29 @@ git clone https://github.com/floppy007/taskflow.git
 cd taskflow
 ```
 
-Edit `docker-compose.yml` to set your admin credentials:
+Edit `docker-compose.yml` (change the admin password!):
 
 ```yaml
-environment:
-  - TASKFLOW_ADMIN_USER=admin
-  - TASKFLOW_ADMIN_PASS=your-secure-password
-  - TASKFLOW_ADMIN_NAME=Administrator
+version: "3.8"
+
+services:
+  taskflow:
+    image: floppy001/taskflow:latest
+    container_name: taskflow
+    ports:
+      - "8080:80"
+    volumes:
+      - taskflow-data:/var/www/html/data
+    environment:
+      - TZ=Europe/Berlin
+      # Admin account (only created on first start)
+      - TASKFLOW_ADMIN_USER=admin
+      - TASKFLOW_ADMIN_PASS=your-secure-password
+      - TASKFLOW_ADMIN_NAME=Administrator
+    restart: unless-stopped
+
+volumes:
+  taskflow-data:
 ```
 
 ```bash
