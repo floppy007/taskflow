@@ -59,8 +59,6 @@ cd taskflow
 Die `docker-compose.yml` anpassen (Admin-Passwort ändern!):
 
 ```yaml
-version: "3.8"
-
 services:
   taskflow:
     image: floppy001/taskflow:latest
@@ -226,8 +224,6 @@ cd taskflow
 Edit `docker-compose.yml` (change the admin password!):
 
 ```yaml
-version: "3.8"
-
 services:
   taskflow:
     image: floppy001/taskflow:latest
