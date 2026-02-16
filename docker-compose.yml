@@ -2,7 +2,7 @@ version: "3.8"
 
 services:
   taskflow:
-    image: floppy007/taskflow:latest
+    image: floppy001/taskflow:latest
     build: .
     container_name: taskflow
     ports:
