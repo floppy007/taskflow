@@ -1,3 +1,13 @@
+# TaskFlow - Docker Compose
+# -------------------------
+# Start:   docker compose up -d
+# Stop:    docker compose down
+# Update:  docker compose pull && docker compose up -d
+# Logs:    docker compose logs -f
+#
+# Nach dem Start erreichbar unter: http://localhost:8080
+# Admin-Zugangsdaten unten anpassen vor dem ersten Start!
+
 version: "3.8"
 
 services:
@@ -11,6 +21,7 @@ services:
       - taskflow-data:/var/www/html/data
     environment:
       - TZ=Europe/Berlin
+      # Admin-Account (wird nur beim ersten Start erstellt)
       - TASKFLOW_ADMIN_USER=admin
       - TASKFLOW_ADMIN_PASS=admin
       - TASKFLOW_ADMIN_NAME=Administrator
