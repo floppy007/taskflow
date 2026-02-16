@@ -8,8 +8,6 @@
 # Nach dem Start erreichbar unter: http://localhost:8080
 # Admin-Zugangsdaten unten anpassen vor dem ersten Start!
 
-version: "3.8"
-
 services:
   taskflow:
     image: floppy001/taskflow:latest
