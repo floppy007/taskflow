@@ -1,0 +1,19 @@
+version: "3.8"
+
+services:
+  taskflow:
+    build: .
+    container_name: taskflow
+    ports:
+      - "8080:80"
+    volumes:
+      - taskflow-data:/var/www/html/data
+    environment:
+      - TZ=Europe/Berlin
+      - TASKFLOW_ADMIN_USER=admin
+      - TASKFLOW_ADMIN_PASS=admin
+      - TASKFLOW_ADMIN_NAME=Administrator
+    restart: unless-stopped
+
+volumes:
+  taskflow-data:

@@ -1,0 +1,13 @@
+.git
+.gitignore
+data/users.json
+data/projects.json
+data/activity.json
+data/notifications.json
+data/migration_version.json
+Dockerfile
+docker-compose.yml
+.dockerignore
+README.md
+LICENSE
+install.php
