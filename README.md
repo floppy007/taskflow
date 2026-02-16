@@ -20,7 +20,7 @@
 - User login & registration
 - Create and manage projects with color coding
 - To-do lists with categories, priorities, and due dates
-- Kanban board with drag & drop (default view)
+- Kanban board with drag & drop (default view) — click cards to edit
 - Drag & drop task reordering in list view
 - Global search across projects and tasks
 - Dark mode (auto-detects system preference)
@@ -39,6 +39,7 @@
 - Soft-delete with 30-day trash & restore
 - Custom confirm dialogs (no browser popups)
 - Automatic data migration system for seamless updates
+- Docker support for easy deployment
 
 ## Requirements
 
@@ -48,27 +49,38 @@
 
 ## Installation
 
-### 1. Upload Installer
+### Option 1: Docker (Recommended)
 
-Download [`install.php`](https://raw.githubusercontent.com/floppy007/taskflow/main/install.php) and copy it to your web server directory (e.g. `/var/www/html/taskflow/`).
-
-### 2. Open in Browser
-
-```
-http://localhost/taskflow/install.php
+```bash
+git clone https://github.com/floppy007/taskflow.git
+cd taskflow
 ```
 
-### 3. Download Files
+Edit `docker-compose.yml` to set your admin credentials:
 
-Click **"Download & Install TaskFlow"** — the installer will automatically download all files from GitHub.
+```yaml
+environment:
+  - TASKFLOW_ADMIN_USER=admin
+  - TASKFLOW_ADMIN_PASS=your-secure-password
+  - TASKFLOW_ADMIN_NAME=Administrator
+```
 
-### 4. Create Admin Account
+```bash
+docker compose up -d
+```
 
-Enter your admin credentials (name, username, password) and click **"Create Account & Finish"**.
+Open `http://localhost:8080` and log in. The admin account is created automatically on first start.
+
+### Option 2: Installer
+
+1. Download [`install.php`](https://raw.githubusercontent.com/floppy007/taskflow/main/install.php) and copy it to your web server directory (e.g. `/var/www/html/taskflow/`).
+2. Open `http://localhost/taskflow/install.php` in your browser.
+3. Click **"Download & Install TaskFlow"** — the installer downloads all files from GitHub.
+4. Enter your admin credentials and click **"Create Account & Finish"**.
 
 > The installer **deletes itself automatically** after successful setup.
 
-### Alternative: Manual Installation
+### Option 3: Manual
 
 ```bash
 git clone https://github.com/floppy007/taskflow.git /var/www/html/taskflow
@@ -87,6 +99,9 @@ taskflow/
 ├── api.php            # Backend API
 ├── version.json       # Version info for update system
 ├── logo.png           # Application logo
+├── Dockerfile         # Docker image definition
+├── docker-compose.yml # Docker Compose configuration
+├── docker-entrypoint.sh # Auto-setup on first start
 ├── lang/
 │   ├── de.json        # German translations
 │   └── en.json        # English translations
@@ -124,9 +139,22 @@ taskflow/
 
 ## Updates
 
-TaskFlow includes a built-in update system. Go to **Settings > Updates** and click "Check for update". If a new version is available, click "Install update" to pull the latest changes from GitHub.
+### Standard (Web Server)
+
+Go to **Settings > Updates** and click "Check for update". If a new version is available, click "Install update" to pull the latest changes from GitHub.
 
 User data (`data/users.json`, `data/projects.json`) is excluded from updates via `.gitignore`.
+
+### Docker
+
+```bash
+cd taskflow
+git pull
+docker compose build
+docker compose up -d
+```
+
+Your data is preserved in the Docker volume.
 
 ## License
 
@@ -143,7 +171,7 @@ See [LICENSE](LICENSE) for full details. Free to use, modify, and distribute —
 - Benutzer-Login & Registrierung
 - Projekte erstellen und verwalten mit Farbmarkierung
 - To-Do-Listen mit Kategorien, Prioritäten und Fälligkeitsdaten
-- Kanban Board mit Drag & Drop (Standardansicht)
+- Kanban Board mit Drag & Drop (Standardansicht) — Karten anklicken zum Bearbeiten
 - Drag & Drop Sortierung in der Listenansicht
 - Globale Suche über Projekte und Aufgaben
 - Dunkelmodus (erkennt System-Einstellung automatisch)
@@ -162,6 +190,7 @@ See [LICENSE](LICENSE) for full details. Free to use, modify, and distribute —
 - Soft-Delete mit 30-Tage-Papierkorb & Wiederherstellung
 - Eigene Bestätigungsdialoge (keine Browser-Popups)
 - Automatisches Daten-Migrationssystem für nahtlose Updates
+- Docker-Unterstützung für einfaches Deployment
 
 ### Voraussetzungen
 
@@ -171,27 +200,38 @@ See [LICENSE](LICENSE) for full details. Free to use, modify, and distribute —
 
 ### Installation
 
-#### 1. Installer hochladen
+#### Option 1: Docker (Empfohlen)
 
-[`install.php`](https://raw.githubusercontent.com/floppy007/taskflow/main/install.php) herunterladen und auf den Webserver kopieren (z.B. `/var/www/html/taskflow/`).
-
-#### 2. Im Browser öffnen
-
-```
-http://localhost/taskflow/install.php
+```bash
+git clone https://github.com/floppy007/taskflow.git
+cd taskflow
 ```
 
-#### 3. Dateien herunterladen
+In `docker-compose.yml` die Admin-Zugangsdaten anpassen:
 
-Auf **"Download & Install TaskFlow"** klicken — der Installer lädt alle Dateien automatisch von GitHub herunter.
+```yaml
+environment:
+  - TASKFLOW_ADMIN_USER=admin
+  - TASKFLOW_ADMIN_PASS=dein-sicheres-passwort
+  - TASKFLOW_ADMIN_NAME=Administrator
+```
 
-#### 4. Admin-Account erstellen
+```bash
+docker compose up -d
+```
 
-Admin-Zugangsdaten eingeben (Name, Benutzername, Passwort) und auf **"Create Account & Finish"** klicken.
+`http://localhost:8080` öffnen und einloggen. Der Admin-Account wird beim ersten Start automatisch erstellt.
+
+#### Option 2: Installer
+
+1. [`install.php`](https://raw.githubusercontent.com/floppy007/taskflow/main/install.php) herunterladen und auf den Webserver kopieren (z.B. `/var/www/html/taskflow/`).
+2. `http://localhost/taskflow/install.php` im Browser öffnen.
+3. Auf **"Download & Install TaskFlow"** klicken — der Installer lädt alle Dateien von GitHub herunter.
+4. Admin-Zugangsdaten eingeben und auf **"Create Account & Finish"** klicken.
 
 > Der Installer **löscht sich automatisch** nach erfolgreicher Einrichtung.
 
-#### Alternative: Manuelle Installation
+#### Option 3: Manuell
 
 ```bash
 git clone https://github.com/floppy007/taskflow.git /var/www/html/taskflow
@@ -211,9 +251,22 @@ Dann `http://localhost/taskflow` öffnen und den Setup-Assistenten durchlaufen.
 
 ### Updates
 
-TaskFlow hat ein eingebautes Update-System. Unter **Einstellungen > Updates** auf "Update prüfen" klicken. Falls eine neue Version verfügbar ist, kann sie direkt per "Update installieren" von GitHub geladen werden.
+#### Standard (Webserver)
+
+Unter **Einstellungen > Updates** auf "Update prüfen" klicken. Falls eine neue Version verfügbar ist, kann sie direkt per "Update installieren" von GitHub geladen werden.
 
 Benutzerdaten (`data/users.json`, `data/projects.json`) werden bei Updates nicht überschrieben.
+
+#### Docker
+
+```bash
+cd taskflow
+git pull
+docker compose build
+docker compose up -d
+```
+
+Daten bleiben im Docker Volume erhalten.
 
 ### Lizenz
 
