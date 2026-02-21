@@ -1,5 +1,5 @@
 /**
- * TaskFlow v1.2 - App
+ * TaskFlow v1.60 - App
  * Copyright (c) 2026 Florian Hesse
  * Fischer Str. 11, 16515 Oranienburg
  * https://comnic-it.de
@@ -245,12 +245,6 @@ async function init() {
 // User Management
 function showLogin() {
   document.getElementById('loginScreen').style.display = 'flex';
-  document.getElementById('registerScreen').style.display = 'none';
-}
-
-function showRegister() {
-  document.getElementById('loginScreen').style.display = 'none';
-  document.getElementById('registerScreen').style.display = 'flex';
 }
 
 async function login() {
@@ -273,26 +267,6 @@ async function login() {
   }
 }
 
-async function register() {
-  const name = document.getElementById('regName').value.trim();
-  const username = document.getElementById('regUsername').value.trim();
-  const password = document.getElementById('regPassword').value;
-
-  if (!name || !username || !password) {
-    showToast('Register', t('register.alert_fields'), 'warning');
-    return;
-  }
-
-  const result = await apiCall('register', {name, username, password});
-
-  if (result.success) {
-    showToast('Register', t('register.alert_success'), 'success');
-    showLogin();
-  } else {
-    showToast('Register', result.message || t('register.alert_failed'), 'error');
-  }
-}
-
 async function logout() {
   if (await showConfirm(t('nav.logout_confirm'), { icon: '🚪', danger: false })) {
     await apiCall('logout');
@@ -307,7 +281,6 @@ async function logout() {
 
 async function showApp() {
   document.getElementById('loginScreen').style.display = 'none';
-  document.getElementById('registerScreen').style.display = 'none';
   document.getElementById('appContainer').classList.add('active');
 
   document.getElementById('userName').textContent = currentUser.name;
@@ -438,12 +411,28 @@ async function showUsers() {
     users = result.data;
     renderUsers();
   }
+
+  // Show LDAP import button if LDAP is enabled
+  const importBtn = document.getElementById('importLdapUsersBtn');
+  if (importBtn) {
+    const ldapResult = await apiCall('getLdapConfig');
+    importBtn.style.display = (ldapResult.success && ldapResult.data && ldapResult.data.enabled) ? '' : 'none';
+  }
 }
 
 function showSettings() {
   setActiveNav(3);
   hideAllViews();
   showViewAnimated('settingsView');
+
+  // Hide password card for LDAP users
+  const pwCard = document.getElementById('passwordChangeCard');
+  if (pwCard) {
+    pwCard.style.display = (currentUser.source === 'ldap') ? 'none' : '';
+  }
+
+  // Load LDAP config for admins
+  loadLdapConfig();
 }
 
 function hideAllViews() {
@@ -633,6 +622,10 @@ function renderUsers() {
     const badgeLabel = isAdmin ? t('users.role_admin') : t('users.role_user');
     const badgeIcon = isAdmin ? '🛡️' : '👤';
     const newRole = isAdmin ? 'user' : 'admin';
+    const source = u.source || 'local';
+    const sourceBadge = source === 'ldap'
+      ? '<span style="font-size:11px;padding:2px 8px;border-radius:6px;background:linear-gradient(135deg,#3b82f6,#06b6d4);color:#fff;font-weight:600">AD/LDAP</span>'
+      : '<span style="font-size:11px;padding:2px 8px;border-radius:6px;background:var(--bg-secondary);color:var(--text-muted);border:1px solid var(--border);font-weight:500">' + t('users.source_local') + '</span>';
 
     return `
     <div style="display:flex;align-items:center;gap:16px;padding:16px;border-bottom:1px solid var(--border)">
@@ -641,6 +634,7 @@ function renderUsers() {
         <div style="font-weight:600;margin-bottom:4px">${escapeHtml(u.name)}</div>
         <div style="font-size:14px;color:var(--text-muted)">@${escapeHtml(u.username)}</div>
       </div>
+      ${sourceBadge}
       <span class="${badgeClass}">${badgeIcon} ${escapeHtml(badgeLabel)}</span>
       <div style="font-size:12px;color:var(--text-muted)">
         ${escapeHtml(t('users.created'))} ${new Date(u.createdAt).toLocaleDateString(currentLang === 'de' ? 'de-DE' : 'en-US')}
@@ -1228,7 +1222,6 @@ function removeLogo() {
 function applyLogo() {
   const logoDataUrl = localStorage.getItem('taskflow_logo');
   const loginLogo = document.getElementById('loginLogo');
-  const registerLogo = document.getElementById('registerLogo');
   const sidebarLogo = document.getElementById('sidebarLogo');
   const logoPreview = document.getElementById('logoPreview');
   const logoPlaceholder = document.getElementById('logoPlaceholder');
@@ -1236,7 +1229,6 @@ function applyLogo() {
   const logoSrc = logoDataUrl || 'logo.png';
 
   if (loginLogo) loginLogo.innerHTML = `<img src="${logoSrc}" alt="TaskFlow" class="login-logo-img">`;
-  if (registerLogo) registerLogo.innerHTML = `<img src="${logoSrc}" alt="TaskFlow" class="login-logo-img">`;
   if (sidebarLogo) sidebarLogo.innerHTML = `<img src="${logoSrc}" alt="TaskFlow" class="sidebar-logo-img">`;
 
   if (logoPreview) {
@@ -1899,6 +1891,88 @@ async function updateMemberFromModal(projectId, userId, newRole) {
     }
   } else {
     showToast(t('members.role_error'), result.message || t('members.role_error'), 'error');
+  }
+}
+
+// LDAP Functions
+async function loadLdapConfig() {
+  const card = document.getElementById('ldapSettingsCard');
+  if (!card || currentUser.role !== 'admin') return;
+  card.style.display = 'block';
+
+  const result = await apiCall('getLdapConfig');
+  if (result.success && result.data) {
+    const c = result.data;
+    document.getElementById('ldapServer').value = c.server || '';
+    document.getElementById('ldapPort').value = c.port || 389;
+    document.getElementById('ldapBaseDn').value = c.base_dn || '';
+    document.getElementById('ldapUserOu').value = c.user_ou || '';
+    document.getElementById('ldapBindUserDn').value = c.bind_user_dn || '';
+    document.getElementById('ldapBindPassword').value = c.bind_password || '';
+    document.getElementById('ldapSearchFilter').value = c.search_filter || '(&(objectClass=user)(objectCategory=person))';
+    document.getElementById('ldapUsernameAttr').value = c.username_attribute || 'sAMAccountName';
+    document.getElementById('ldapDisplaynameAttr').value = c.display_name_attribute || 'displayName';
+    document.getElementById('ldapEmailAttr').value = c.email_attribute || 'mail';
+    document.getElementById('ldapUseTls').checked = !!c.use_tls;
+    document.getElementById('ldapEnabled').checked = !!c.enabled;
+  }
+}
+
+async function saveLdapConfig() {
+  const config = {
+    server: document.getElementById('ldapServer').value.trim(),
+    port: parseInt(document.getElementById('ldapPort').value) || 389,
+    base_dn: document.getElementById('ldapBaseDn').value.trim(),
+    user_ou: document.getElementById('ldapUserOu').value.trim(),
+    bind_user_dn: document.getElementById('ldapBindUserDn').value.trim(),
+    bind_password: document.getElementById('ldapBindPassword').value,
+    search_filter: document.getElementById('ldapSearchFilter').value.trim(),
+    username_attribute: document.getElementById('ldapUsernameAttr').value.trim(),
+    display_name_attribute: document.getElementById('ldapDisplaynameAttr').value.trim(),
+    email_attribute: document.getElementById('ldapEmailAttr').value.trim(),
+    use_tls: document.getElementById('ldapUseTls').checked,
+    enabled: document.getElementById('ldapEnabled').checked
+  };
+
+  const result = await apiCall('saveLdapConfig', config);
+  if (result.success) {
+    showToast(t('ldap.title'), result.message, 'success');
+  } else {
+    showToast(t('ldap.title'), result.message || t('ldap.save_error'), 'error');
+  }
+}
+
+async function testLdapConnection() {
+  const resultDiv = document.getElementById('ldapTestResult');
+  resultDiv.style.display = 'block';
+  resultDiv.innerHTML = '<div style="padding:12px;background:var(--bg-secondary);border-radius:8px;color:var(--text-muted)">' + t('ldap.testing') + '...</div>';
+
+  const result = await apiCall('testLdapConnection');
+  if (result.success) {
+    resultDiv.innerHTML = '<div style="padding:12px;background:var(--success);color:#fff;border-radius:8px">' +
+      escapeHtml(result.message) + '</div>';
+  } else {
+    resultDiv.innerHTML = '<div style="padding:12px;background:var(--danger);color:#fff;border-radius:8px">' +
+      escapeHtml(result.message) + '</div>';
+  }
+}
+
+async function importLdapUsers() {
+  if (!await showConfirm(t('ldap.import_confirm'), { icon: '📥', title: t('ldap.import_btn'), danger: false })) return;
+
+  const result = await apiCall('importLdapUsers');
+  if (result.success) {
+    const d = result.data;
+    const detail = `${t('ldap.imported')}: ${d.imported}, ${t('ldap.updated')}: ${d.updated}, ${t('ldap.skipped')}: ${d.skipped}`;
+    showToast(t('ldap.import_btn'), detail, 'success');
+    // Refresh user list
+    const usersResult = await apiCall('getUsers');
+    if (usersResult.success) {
+      users = usersResult.data;
+      renderUsers();
+    }
+  } else {
+    showToast(t('ldap.import_btn'), result.message || t('ldap.import_error'), 'error');
   }
 }
 
