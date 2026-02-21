@@ -85,6 +85,17 @@ docker compose up -d
 
 `http://localhost:8080` öffnen und einloggen. Der Admin-Account wird beim ersten Start automatisch erstellt.
 
+### Option 1b: Unraid
+
+1. In der Unraid-Oberfläche unter **Docker → Template Repositories** folgende URL hinzufügen:
+   ```
+   https://github.com/floppy007/taskflow
+   ```
+2. Unter **Docker → Add Container** das Template **TaskFlow** auswählen.
+3. Admin-Zugangsdaten und Zeitzone anpassen, dann auf **Apply** klicken.
+
+> Das Admin-Passwort wird nur beim ersten Start verwendet. Danach kann es in der App geändert werden.
+
 ### Option 2: Installer
 
 1. [`install.php`](https://raw.githubusercontent.com/floppy007/taskflow/main/install.php) herunterladen und auf den Webserver kopieren (z.B. `/var/www/html/taskflow/`).
@@ -116,6 +127,8 @@ taskflow/
 ├── Dockerfile         # Docker-Image-Definition
 ├── docker-compose.yml # Docker Compose Konfiguration
 ├── docker-entrypoint.sh # Auto-Setup beim ersten Start
+├── unraid-template/
+│   └── taskflow.xml   # Unraid Docker-Template
 ├── lang/
 │   ├── de.json        # Deutsche Übersetzungen
 │   └── en.json        # Englische Übersetzungen
@@ -250,6 +263,17 @@ docker compose up -d
 
 Open `http://localhost:8080` and log in. The admin account is created automatically on first start.
 
+#### Option 1b: Unraid
+
+1. In the Unraid web UI, go to **Docker → Template Repositories** and add:
+   ```
+   https://github.com/floppy007/taskflow
+   ```
+2. Go to **Docker → Add Container** and select the **TaskFlow** template.
+3. Adjust admin credentials and timezone, then click **Apply**.
+
+> The admin password is only used on first start. You can change it in the app afterwards.
+
 #### Option 2: Installer
 
 1. Download [`install.php`](https://raw.githubusercontent.com/floppy007/taskflow/main/install.php) and copy it to your web server directory (e.g. `/var/www/html/taskflow/`).
@@ -281,6 +305,8 @@ taskflow/
 ├── Dockerfile         # Docker image definition
 ├── docker-compose.yml # Docker Compose configuration
 ├── docker-entrypoint.sh # Auto-setup on first start
+├── unraid-template/
+│   └── taskflow.xml   # Unraid Docker template
 ├── lang/
 │   ├── de.json        # German translations
 │   └── en.json        # English translations
