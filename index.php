@@ -6,7 +6,7 @@ if (!file_exists(__DIR__ . '/data/users.json') && file_exists(__DIR__ . '/instal
 }
 ?>
 <!--
-  TaskFlow v1.2
+  TaskFlow v1.60
   Copyright (c) 2026 Florian Hesse
   Fischer Str. 11, 16515 Oranienburg
   https://comnic-it.de
@@ -368,26 +368,6 @@ if (!file_exists(__DIR__ . '/data/users.json') && file_exists(__DIR__ . '/instal
   .btn-sm {
     padding:10px 18px;
     font-size:14px;
-  }
-
-  .login-footer {
-    text-align:center;
-    margin-top:28px;
-    padding-top:28px;
-    border-top:1px solid var(--border);
-  }
-
-  .login-footer a {
-    color:var(--primary);
-    text-decoration:none;
-    font-weight:600;
-    font-size:14px;
-    transition:all .2s;
-  }
-
-  .login-footer a:hover {
-    color:var(--primary-dark);
-    text-decoration:underline;
   }
 
   .copyright {
@@ -1975,44 +1955,6 @@ if (!file_exists(__DIR__ . '/data/users.json') && file_exists(__DIR__ . '/instal
       <span data-i18n="login.submit">Anmelden</span>
     </button>
 
-    <div class="login-footer">
-      <a href="#" onclick="showRegister();return false" data-i18n="login.create_account_link">Neuen Account erstellen &rarr;</a>
-    </div>
-    <div class="copyright">TaskFlow &copy; 2026 Florian Hesse &middot; <a href="https://comnic-it.de" target="_blank" style="color:inherit;text-decoration:underline">comnic-it.de</a></div>
-  </div>
-</div>
-
-<!-- Register Screen -->
-<div class="login-container" id="registerScreen" style="display:none">
-  <div class="login-orb login-orb-1"></div>
-  <div class="login-orb login-orb-2"></div>
-
-  <div class="login-box">
-    <div class="login-logo">
-      <h1 id="registerLogo"><img src="logo.png" alt="TaskFlow" class="login-logo-img"></h1>
-      <p data-i18n="register.subtitle">Neuen Account erstellen</p>
-    </div>
-
-    <div class="form-group">
-      <label class="form-label" data-i18n="register.name">Name</label>
-      <input type="text" class="form-input" id="regName" data-i18n-placeholder="register.name_placeholder" placeholder="Vollständiger Name">
-    </div>
-
-    <div class="form-group">
-      <label class="form-label" data-i18n="register.username">Benutzername</label>
-      <input type="text" class="form-input" id="regUsername" data-i18n-placeholder="register.username_placeholder" placeholder="Benutzernamen wählen">
-    </div>
-
-    <div class="form-group">
-      <label class="form-label" data-i18n="register.password">Passwort</label>
-      <input type="password" class="form-input" id="regPassword" data-i18n-placeholder="register.password_placeholder" placeholder="Sicheres Passwort wählen">
-    </div>
-
-    <button class="btn btn-primary" onclick="register()" data-i18n="register.submit">Account erstellen</button>
-
-    <div class="login-footer">
-      <a href="#" onclick="showLogin();return false" data-i18n="register.back_link">&larr; Zurück zum Login</a>
-    </div>
     <div class="copyright">TaskFlow &copy; 2026 Florian Hesse &middot; <a href="https://comnic-it.de" target="_blank" style="color:inherit;text-decoration:underline">comnic-it.de</a></div>
   </div>
 </div>
@@ -2174,7 +2116,10 @@ if (!file_exists(__DIR__ . '/data/users.json') && file_exists(__DIR__ . '/instal
               <h1 class="page-title" data-i18n="users.title">Benutzerverwaltung</h1>
               <p class="page-subtitle" data-i18n="users.subtitle">Alle registrierten Benutzer</p>
             </div>
-            <button class="btn btn-primary" onclick="openCreateUserForm()"><span data-i18n="users.create_btn">+ Neuer Benutzer</span></button>
+            <div style="display:flex;gap:12px">
+              <button class="btn btn-primary" onclick="openCreateUserForm()"><span data-i18n="users.create_btn">+ Neuer Benutzer</span></button>
+              <button class="btn btn-secondary" id="importLdapUsersBtn" onclick="importLdapUsers()" style="display:none"><span data-i18n="ldap.import_btn">AD-Benutzer importieren</span></button>
+            </div>
           </div>
         </div>
 
@@ -2371,7 +2316,7 @@ if (!file_exists(__DIR__ . '/data/users.json') && file_exists(__DIR__ . '/instal
           <p class="page-subtitle" data-i18n="settings.subtitle">Design & Daten</p>
         </div>
 
-        <div class="card">
+        <div class="card" id="passwordChangeCard">
           <h3 class="card-title" style="margin-bottom:12px" data-i18n="settings.password_title">Passwort ändern</h3>
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px">
             <div>
@@ -2388,6 +2333,81 @@ if (!file_exists(__DIR__ . '/data/users.json') && file_exists(__DIR__ . '/instal
             </div>
           </div>
           <button class="btn btn-primary btn-sm" onclick="changePassword()"><span data-i18n="settings.password_btn">Passwort ändern</span></button>
+        </div>
+
+        <!-- LDAP Settings Card (Admin only, shown via JS) -->
+        <div class="card" id="ldapSettingsCard" style="display:none">
+          <h3 class="card-title" style="margin-bottom:16px" data-i18n="ldap.title">AD/LDAP Integration</h3>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+            <div>
+              <label class="form-label" data-i18n="ldap.server">Server</label>
+              <input type="text" class="form-input" id="ldapServer" placeholder="ldap://dc01.example.com">
+            </div>
+            <div>
+              <label class="form-label" data-i18n="ldap.port">Port</label>
+              <input type="number" class="form-input" id="ldapPort" value="389">
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+            <div>
+              <label class="form-label" data-i18n="ldap.base_dn">Base DN</label>
+              <input type="text" class="form-input" id="ldapBaseDn" placeholder="DC=example,DC=com">
+            </div>
+            <div>
+              <label class="form-label" data-i18n="ldap.user_ou">User OU (Suchbasis)</label>
+              <textarea class="form-input" id="ldapUserOu" placeholder="OU=Users,DC=example,DC=com&#10;OU=Admins,DC=example,DC=com" style="min-height:60px;resize:vertical"></textarea>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:4px" data-i18n="ldap.user_ou_hint">Eine OU pro Zeile f\u00fcr mehrere Gruppen</div>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+            <div>
+              <label class="form-label" data-i18n="ldap.bind_user_dn">Bind User DN</label>
+              <input type="text" class="form-input" id="ldapBindUserDn" placeholder="CN=reader,OU=Service,DC=example,DC=com">
+            </div>
+            <div>
+              <label class="form-label" data-i18n="ldap.bind_password">Bind Passwort</label>
+              <input type="password" class="form-input" id="ldapBindPassword" placeholder="********">
+            </div>
+          </div>
+
+          <div style="margin-bottom:12px">
+            <label class="form-label" data-i18n="ldap.search_filter">Suchfilter</label>
+            <input type="text" class="form-input" id="ldapSearchFilter" placeholder="(&amp;(objectClass=user)(objectCategory=person))">
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px">
+            <div>
+              <label class="form-label" data-i18n="ldap.username_attr">Username Attribut</label>
+              <input type="text" class="form-input" id="ldapUsernameAttr" value="sAMAccountName">
+            </div>
+            <div>
+              <label class="form-label" data-i18n="ldap.displayname_attr">Anzeigename Attribut</label>
+              <input type="text" class="form-input" id="ldapDisplaynameAttr" value="displayName">
+            </div>
+            <div>
+              <label class="form-label" data-i18n="ldap.email_attr">E-Mail Attribut</label>
+              <input type="text" class="form-input" id="ldapEmailAttr" value="mail">
+            </div>
+          </div>
+
+          <div style="display:flex;gap:16px;align-items:center;margin-bottom:16px">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+              <input type="checkbox" id="ldapUseTls"> <span data-i18n="ldap.use_tls">STARTTLS verwenden</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+              <input type="checkbox" id="ldapEnabled"> <span data-i18n="ldap.enabled">LDAP aktiviert</span>
+            </label>
+          </div>
+
+          <div style="display:flex;gap:12px;margin-bottom:12px">
+            <button class="btn btn-primary btn-sm" onclick="saveLdapConfig()"><span data-i18n="ldap.save_btn">Konfiguration speichern</span></button>
+            <button class="btn btn-secondary btn-sm" onclick="testLdapConnection()"><span data-i18n="ldap.test_btn">Verbindung testen</span></button>
+          </div>
+
+          <div id="ldapTestResult" style="display:none"></div>
         </div>
 
         <div class="card">

@@ -1,6 +1,6 @@
 <?php
 /**
- * TaskFlow v1.2 - API
+ * TaskFlow v1.60 - API
  * Copyright (c) 2026 Florian Hesse
  * Fischer Str. 11, 16515 Oranienburg
  * https://comnic-it.de
@@ -82,6 +82,19 @@ $messages = [
         'attachment_not_found' => 'Anhang nicht gefunden',
         'attachment_too_large' => 'Datei ist zu groß (max. 10 MB)',
         'attachment_upload_failed' => 'Upload fehlgeschlagen',
+        'register_disabled' => 'Selbstregistrierung ist deaktiviert',
+        'ldap_config_saved' => 'LDAP-Konfiguration gespeichert',
+        'ldap_extension_missing' => 'PHP LDAP-Erweiterung ist nicht installiert',
+        'ldap_not_configured' => 'LDAP ist nicht konfiguriert',
+        'ldap_connect_failed' => 'LDAP-Verbindung fehlgeschlagen',
+        'ldap_tls_failed' => 'STARTTLS fehlgeschlagen',
+        'ldap_bind_failed' => 'LDAP-Bind fehlgeschlagen (Zugangsdaten prüfen)',
+        'ldap_test_success' => 'LDAP-Verbindung erfolgreich',
+        'ldap_import_success' => 'LDAP-Import abgeschlossen',
+        'ldap_import_failed' => 'LDAP-Import fehlgeschlagen',
+        'ldap_no_users' => 'Keine Benutzer im LDAP gefunden',
+        'ldap_unreachable' => 'LDAP-Server nicht erreichbar',
+        'ldap_no_password_change' => 'Passwortänderung für AD/LDAP-Benutzer nicht möglich',
     ],
     'en' => [
         'login_required' => 'Username and password required',
@@ -133,6 +146,19 @@ $messages = [
         'attachment_not_found' => 'Attachment not found',
         'attachment_too_large' => 'File is too large (max. 10 MB)',
         'attachment_upload_failed' => 'Upload failed',
+        'register_disabled' => 'Self-registration is disabled',
+        'ldap_config_saved' => 'LDAP configuration saved',
+        'ldap_extension_missing' => 'PHP LDAP extension is not installed',
+        'ldap_not_configured' => 'LDAP is not configured',
+        'ldap_connect_failed' => 'LDAP connection failed',
+        'ldap_tls_failed' => 'STARTTLS failed',
+        'ldap_bind_failed' => 'LDAP bind failed (check credentials)',
+        'ldap_test_success' => 'LDAP connection successful',
+        'ldap_import_success' => 'LDAP import completed',
+        'ldap_import_failed' => 'LDAP import failed',
+        'ldap_no_users' => 'No users found in LDAP',
+        'ldap_unreachable' => 'LDAP server unreachable',
+        'ldap_no_password_change' => 'Password change not available for AD/LDAP users',
     ],
 ];
 
@@ -172,6 +198,19 @@ function loadUsers() {
 function saveUsers($users) {
     global $usersFile;
     file_put_contents($usersFile, json_encode($users, JSON_PRETTY_PRINT));
+}
+
+function loadLdapConfig() {
+    global $dataDir;
+    $file = $dataDir . '/ldap_config.json';
+    if (!file_exists($file)) return null;
+    return json_decode(file_get_contents($file), true);
+}
+
+function saveLdapConfig($config) {
+    global $dataDir;
+    $file = $dataDir . '/ldap_config.json';
+    file_put_contents($file, json_encode($config, JSON_PRETTY_PRINT), LOCK_EX);
 }
 
 function loadProjects() {
@@ -338,6 +377,19 @@ function getDataMigrations() {
             }
             if ($changed) saveProjects($projects);
         },
+
+        // v6: Add source field to all users (default: local)
+        6 => function() {
+            $users = loadUsers();
+            $changed = false;
+            foreach ($users as &$u) {
+                if (!isset($u['source'])) {
+                    $u['source'] = 'local';
+                    $changed = true;
+                }
+            }
+            if ($changed) saveUsers($users);
+        },
     ];
 }
 
@@ -391,18 +443,66 @@ switch ($action) {
         }
 
         $users = loadUsers();
-        $user = null;
+        $foundUser = null;
 
         foreach ($users as $u) {
-            if ($u['username'] === $username && password_verify($password, $u['password'])) {
-                $user = $u;
-                $user['role'] = $u['role'] ?? 'admin';
-                unset($user['password']);
+            if ($u['username'] === $username) {
+                $foundUser = $u;
                 break;
             }
         }
 
-        if ($user) {
+        if (!$foundUser) {
+            response(false, null, msg('login_failed'));
+        }
+
+        $source = $foundUser['source'] ?? 'local';
+        $authenticated = false;
+
+        if ($source === 'ldap') {
+            // LDAP authentication
+            if (!function_exists('ldap_connect')) {
+                response(false, null, msg('ldap_extension_missing'));
+            }
+
+            $config = loadLdapConfig();
+            if (!$config || empty($config['server'])) {
+                response(false, null, msg('ldap_unreachable'));
+            }
+
+            $conn = @ldap_connect($config['server'], $config['port']);
+            if (!$conn) {
+                response(false, null, msg('ldap_unreachable'));
+            }
+
+            ldap_set_option($conn, LDAP_OPT_PROTOCOL_VERSION, 3);
+            ldap_set_option($conn, LDAP_OPT_REFERRALS, 0);
+            ldap_set_option($conn, LDAP_OPT_NETWORK_TIMEOUT, 10);
+
+            if (!empty($config['use_tls'])) {
+                if (!@ldap_start_tls($conn)) {
+                    @ldap_close($conn);
+                    response(false, null, msg('ldap_unreachable'));
+                }
+            }
+
+            // Bind with user's own DN and password
+            $userDn = $foundUser['ldap_dn'] ?? '';
+            if (!empty($userDn)) {
+                $authenticated = @ldap_bind($conn, $userDn, $password);
+            }
+            @ldap_close($conn);
+        } else {
+            // Local authentication
+            if (!empty($foundUser['password']) && password_verify($password, $foundUser['password'])) {
+                $authenticated = true;
+            }
+        }
+
+        if ($authenticated) {
+            $user = $foundUser;
+            $user['role'] = $user['role'] ?? 'admin';
+            unset($user['password']);
             $_SESSION['user'] = $user;
             logActivity('user_login');
             response(true, $user, msg('login_success'));
@@ -412,38 +512,7 @@ switch ($action) {
         break;
 
     case 'register':
-        $name = $input['name'] ?? '';
-        $username = $input['username'] ?? '';
-        $password = $input['password'] ?? '';
-
-        if (empty($name) || empty($username) || empty($password)) {
-            response(false, null, msg('register_required'));
-        }
-
-        $users = loadUsers();
-
-        foreach ($users as $u) {
-            if ($u['username'] === $username) {
-                response(false, null, msg('register_exists'));
-            }
-        }
-
-        $newId = count($users) > 0 ? max(array_column($users, 'id')) + 1 : 1;
-
-        $newUser = [
-            'id' => $newId,
-            'username' => $username,
-            'password' => password_hash($password, PASSWORD_DEFAULT),
-            'name' => $name,
-            'role' => 'user',
-            'createdAt' => date('c')
-        ];
-
-        $users[] = $newUser;
-        saveUsers($users);
-
-        unset($newUser['password']);
-        response(true, $newUser, msg('register_success'));
+        response(false, null, msg('register_disabled'));
         break;
 
     case 'logout':
@@ -483,6 +552,10 @@ switch ($action) {
     case 'changePassword':
         if (!isset($_SESSION['user'])) {
             response(false, null, msg('not_logged_in'));
+        }
+
+        if (($_SESSION['user']['source'] ?? 'local') === 'ldap') {
+            response(false, null, msg('ldap_no_password_change'));
         }
 
         $currentPassword = $input['currentPassword'] ?? '';
@@ -545,6 +618,7 @@ switch ($action) {
             'password' => password_hash($password, PASSWORD_DEFAULT),
             'name' => $name,
             'role' => $role,
+            'source' => 'local',
             'createdAt' => date('c')
         ];
 
@@ -1616,6 +1690,231 @@ switch ($action) {
         } else {
             response(false, null, msg('attachment_not_found'));
         }
+        break;
+
+    case 'getLdapConfig':
+        if (!isset($_SESSION['user'])) {
+            response(false, null, msg('not_logged_in'));
+        }
+        requireAdmin();
+
+        $config = loadLdapConfig();
+        if ($config && !empty($config['bind_password'])) {
+            $config['bind_password'] = '********';
+        }
+        response(true, $config);
+        break;
+
+    case 'saveLdapConfig':
+        if (!isset($_SESSION['user'])) {
+            response(false, null, msg('not_logged_in'));
+        }
+        requireAdmin();
+
+        $config = [
+            'enabled' => !empty($input['enabled']),
+            'server' => $input['server'] ?? '',
+            'port' => (int)($input['port'] ?? 389),
+            'use_tls' => !empty($input['use_tls']),
+            'base_dn' => $input['base_dn'] ?? '',
+            'bind_user_dn' => $input['bind_user_dn'] ?? '',
+            'bind_password' => $input['bind_password'] ?? '',
+            'search_filter' => $input['search_filter'] ?? '(&(objectClass=user)(objectCategory=person))',
+            'user_ou' => $input['user_ou'] ?? '',
+            'username_attribute' => $input['username_attribute'] ?? 'sAMAccountName',
+            'display_name_attribute' => $input['display_name_attribute'] ?? 'displayName',
+            'email_attribute' => $input['email_attribute'] ?? 'mail',
+        ];
+
+        // Keep existing password if placeholder was sent
+        if ($config['bind_password'] === '********' || $config['bind_password'] === '') {
+            $existing = loadLdapConfig();
+            if ($existing && !empty($existing['bind_password'])) {
+                $config['bind_password'] = $existing['bind_password'];
+            }
+        }
+
+        saveLdapConfig($config);
+        response(true, null, msg('ldap_config_saved'));
+        break;
+
+    case 'testLdapConnection':
+        if (!isset($_SESSION['user'])) {
+            response(false, null, msg('not_logged_in'));
+        }
+        requireAdmin();
+
+        if (!function_exists('ldap_connect')) {
+            response(false, null, msg('ldap_extension_missing'));
+        }
+
+        $config = loadLdapConfig();
+        if (!$config || empty($config['server'])) {
+            response(false, null, msg('ldap_not_configured'));
+        }
+
+        $conn = @ldap_connect($config['server'], $config['port']);
+        if (!$conn) {
+            response(false, null, msg('ldap_connect_failed'));
+        }
+
+        ldap_set_option($conn, LDAP_OPT_PROTOCOL_VERSION, 3);
+        ldap_set_option($conn, LDAP_OPT_REFERRALS, 0);
+        ldap_set_option($conn, LDAP_OPT_NETWORK_TIMEOUT, 10);
+
+        if (!empty($config['use_tls'])) {
+            if (!@ldap_start_tls($conn)) {
+                @ldap_close($conn);
+                response(false, null, msg('ldap_tls_failed'));
+            }
+        }
+
+        $bind = @ldap_bind($conn, $config['bind_user_dn'], $config['bind_password']);
+        if (!$bind) {
+            @ldap_close($conn);
+            response(false, null, msg('ldap_bind_failed'));
+        }
+
+        // Count users in the configured OU(s)
+        $filter = !empty($config['search_filter']) ? $config['search_filter'] : '(&(objectClass=user)(objectCategory=person))';
+        $userOus = array_filter(array_map('trim', preg_split('/[\r\n]+/', $config['user_ou'] ?? '')));
+        if (empty($userOus)) $userOus = [$config['base_dn']];
+
+        $count = 0;
+        foreach ($userOus as $ou) {
+            $sr = @ldap_search($conn, $ou, $filter, [$config['username_attribute'] ?? 'sAMAccountName']);
+            if ($sr) $count += ldap_count_entries($conn, $sr);
+        }
+
+        @ldap_close($conn);
+        response(true, ['user_count' => $count], msg('ldap_test_success') . " ($count " . ($count === 1 ? 'Benutzer' : 'Benutzer') . ")");
+        break;
+
+    case 'importLdapUsers':
+        if (!isset($_SESSION['user'])) {
+            response(false, null, msg('not_logged_in'));
+        }
+        requireAdmin();
+
+        if (!function_exists('ldap_connect')) {
+            response(false, null, msg('ldap_extension_missing'));
+        }
+
+        $config = loadLdapConfig();
+        if (!$config || empty($config['server']) || empty($config['enabled'])) {
+            response(false, null, msg('ldap_not_configured'));
+        }
+
+        $conn = @ldap_connect($config['server'], $config['port']);
+        if (!$conn) {
+            response(false, null, msg('ldap_connect_failed'));
+        }
+
+        ldap_set_option($conn, LDAP_OPT_PROTOCOL_VERSION, 3);
+        ldap_set_option($conn, LDAP_OPT_REFERRALS, 0);
+        ldap_set_option($conn, LDAP_OPT_NETWORK_TIMEOUT, 10);
+
+        if (!empty($config['use_tls'])) {
+            if (!@ldap_start_tls($conn)) {
+                @ldap_close($conn);
+                response(false, null, msg('ldap_tls_failed'));
+            }
+        }
+
+        $bind = @ldap_bind($conn, $config['bind_user_dn'], $config['bind_password']);
+        if (!$bind) {
+            @ldap_close($conn);
+            response(false, null, msg('ldap_bind_failed'));
+        }
+
+        $filter = !empty($config['search_filter']) ? $config['search_filter'] : '(&(objectClass=user)(objectCategory=person))';
+        $usernameAttr = strtolower($config['username_attribute'] ?? 'sAMAccountName');
+        $displayAttr = strtolower($config['display_name_attribute'] ?? 'displayName');
+        $emailAttr = strtolower($config['email_attribute'] ?? 'mail');
+
+        $userOus = array_filter(array_map('trim', preg_split('/[\r\n]+/', $config['user_ou'] ?? '')));
+        if (empty($userOus)) $userOus = [$config['base_dn']];
+
+        // Search all OUs and merge entries
+        $allEntries = [];
+        foreach ($userOus as $ou) {
+            $sr = @ldap_search($conn, $ou, $filter, [$usernameAttr, $displayAttr, $emailAttr, 'dn']);
+            if ($sr) {
+                $ouEntries = ldap_get_entries($conn, $sr);
+                for ($j = 0; $j < $ouEntries['count']; $j++) {
+                    $allEntries[] = $ouEntries[$j];
+                }
+            }
+        }
+        @ldap_close($conn);
+
+        if (count($allEntries) === 0) {
+            response(false, null, msg('ldap_no_users'));
+        }
+
+        // Build a pseudo-entries array for processing
+        $entries = ['count' => count($allEntries)];
+        foreach ($allEntries as $idx => $entry) {
+            $entries[$idx] = $entry;
+        }
+
+        $users = loadUsers();
+        $imported = 0;
+        $updated = 0;
+        $skipped = 0;
+
+        for ($i = 0; $i < $entries['count']; $i++) {
+            $entry = $entries[$i];
+            $username = $entry[$usernameAttr][0] ?? null;
+            if (!$username) { $skipped++; continue; }
+
+            $displayName = $entry[$displayAttr][0] ?? $username;
+            $email = $entry[$emailAttr][0] ?? '';
+            $dn = $entry['dn'] ?? '';
+
+            // Check if user already exists
+            $existingIdx = null;
+            foreach ($users as $idx => $u) {
+                if (strtolower($u['username']) === strtolower($username)) {
+                    $existingIdx = $idx;
+                    break;
+                }
+            }
+
+            if ($existingIdx !== null) {
+                $existingUser = $users[$existingIdx];
+                if (($existingUser['source'] ?? 'local') === 'local') {
+                    // Local user with same username - skip
+                    $skipped++;
+                } else {
+                    // LDAP user - update name/email/DN
+                    $users[$existingIdx]['name'] = $displayName;
+                    $users[$existingIdx]['email'] = $email;
+                    $users[$existingIdx]['ldap_dn'] = $dn;
+                    $updated++;
+                }
+            } else {
+                // New user
+                $newId = count($users) > 0 ? max(array_column($users, 'id')) + 1 : 1;
+                $users[] = [
+                    'id' => $newId,
+                    'username' => $username,
+                    'password' => null,
+                    'name' => $displayName,
+                    'role' => 'user',
+                    'source' => 'ldap',
+                    'ldap_dn' => $dn,
+                    'email' => $email,
+                    'createdAt' => date('c'),
+                    'importedAt' => date('c')
+                ];
+                $imported++;
+            }
+        }
+
+        saveUsers($users);
+        logActivity('ldap_import', ['imported' => $imported, 'updated' => $updated, 'skipped' => $skipped]);
+        response(true, ['imported' => $imported, 'updated' => $updated, 'skipped' => $skipped], msg('ldap_import_success'));
         break;
 
     case 'downloadAttachment':

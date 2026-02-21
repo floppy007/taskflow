@@ -3,6 +3,13 @@ FROM php:8.2-apache
 # Apache-Module aktivieren
 RUN a2enmod deflate expires headers rewrite
 
+# PHP LDAP-Erweiterung installieren
+RUN apt-get update && \
+    apt-get install -y libldap2-dev && \
+    docker-php-ext-configure ldap && \
+    docker-php-ext-install ldap && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
 # PHP-Konfiguration
 RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
 
