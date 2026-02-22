@@ -40,6 +40,7 @@
 - Eigene Bestätigungsdialoge (keine Browser-Popups)
 - Automatisches Daten-Migrationssystem für nahtlose Updates
 - Docker-Unterstützung für einfaches Deployment
+- AD/LDAP-Integration (**Beta** — Anbindung an Active Directory / LDAP-Server)
 
 ## Voraussetzungen
 
@@ -218,6 +219,7 @@ Siehe [LICENSE](LICENSE) für Details. Frei nutzbar, veränderbar und verteilbar
 - Custom confirm dialogs (no browser popups)
 - Automatic data migration system for seamless updates
 - Docker support for easy deployment
+- AD/LDAP integration (**Beta** — connect to Active Directory / LDAP servers)
 
 ### Requirements
 
