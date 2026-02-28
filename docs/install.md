@@ -33,7 +33,10 @@
 | `.htaccess`-Erstellung | Schützt Data-Verzeichnis vor direktem Web-Zugriff |
 | PHP User-Setup | Erstellt oder aktualisiert Admin-User komplett via PHP (sicheres Escaping, keine Shell-Expansion) |
 | Erster Start | Erstellt `users.json`, `projects.json`, `activity.json` mit Admin aus Umgebungsvariablen |
-| Folgestarts | Aktualisiert Admin-Passwort/Name aus Umgebungsvariablen falls geändert |
+| Folgestarts | Erzwingt Admin-Passwort/Name aus Umgebungsvariablen bei jedem Container-Start |
+| Korrupte Daten | Erkennt ungültige `users.json` und erstellt sie automatisch neu |
+| Fehlender Admin | Legt Admin-User an, falls er in bestehender `users.json` fehlt |
+| Verifikation | Liest geschriebene Datei zurück und prüft Passwort-Hash; bricht bei Fehler ab |
 | `exec apache2-foreground` | Startet Apache im Vordergrund |
 
 ### Umgebungsvariablen
