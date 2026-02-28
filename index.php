@@ -6,7 +6,7 @@ if (!file_exists(__DIR__ . '/data/users.json') && file_exists(__DIR__ . '/instal
 }
 ?>
 <!--
-  TaskFlow v1.61
+  TaskFlow v1.70
   Copyright (c) 2026 Florian Hesse
   Fischer Str. 11, 16515 Oranienburg
   https://comnic-it.de
@@ -1935,7 +1935,7 @@ if (!file_exists(__DIR__ . '/data/users.json') && file_exists(__DIR__ . '/instal
   <div class="login-orb login-orb-1"></div>
   <div class="login-orb login-orb-2"></div>
 
-  <div class="login-box">
+  <div class="login-box" id="loginBox">
     <div class="login-logo">
       <h1 id="loginLogo"><img src="logo.png" alt="TaskFlow" class="login-logo-img"></h1>
       <p data-i18n="login.subtitle">Projekt & Aufgabenverwaltung</p>
@@ -1954,6 +1954,61 @@ if (!file_exists(__DIR__ . '/data/users.json') && file_exists(__DIR__ . '/instal
     <button class="btn btn-primary" onclick="login()">
       <span data-i18n="login.submit">Anmelden</span>
     </button>
+
+    <div style="text-align:center;margin-top:16px">
+      <a href="#" onclick="showForgotPassword();return false" style="color:var(--text-muted);font-size:14px;text-decoration:none" data-i18n="login.forgot_password">Passwort vergessen?</a>
+    </div>
+
+    <div class="copyright">TaskFlow &copy; 2026 Florian Hesse &middot; <a href="https://comnic-it.de" target="_blank" style="color:inherit;text-decoration:underline">comnic-it.de</a></div>
+  </div>
+
+  <!-- Forgot Password Screen -->
+  <div class="login-box" id="forgotPasswordBox" style="display:none">
+    <div class="login-logo">
+      <h1 id="forgotLogo"><img src="logo.png" alt="TaskFlow" class="login-logo-img"></h1>
+      <p data-i18n="reset.title">Passwort zur&uuml;cksetzen</p>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" data-i18n="reset.username_or_email">Benutzername oder E-Mail</label>
+      <input type="text" class="form-input" id="resetIdentifier" data-i18n-placeholder="reset.username_or_email_placeholder" placeholder="Benutzername oder E-Mail eingeben">
+    </div>
+
+    <button class="btn btn-primary" onclick="requestPasswordReset()">
+      <span data-i18n="reset.send_link">Link senden</span>
+    </button>
+
+    <div style="text-align:center;margin-top:16px">
+      <a href="#" onclick="backToLogin();return false" style="color:var(--text-muted);font-size:14px;text-decoration:none" data-i18n="reset.back_to_login">Zur&uuml;ck zum Login</a>
+    </div>
+
+    <div class="copyright">TaskFlow &copy; 2026 Florian Hesse &middot; <a href="https://comnic-it.de" target="_blank" style="color:inherit;text-decoration:underline">comnic-it.de</a></div>
+  </div>
+
+  <!-- Reset Password Screen (shown via URL token) -->
+  <div class="login-box" id="resetPasswordBox" style="display:none">
+    <div class="login-logo">
+      <h1 id="resetLogo"><img src="logo.png" alt="TaskFlow" class="login-logo-img"></h1>
+      <p data-i18n="reset.title">Passwort zur&uuml;cksetzen</p>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" data-i18n="reset.new_password">Neues Passwort</label>
+      <input type="password" class="form-input" id="resetNewPassword" data-i18n-placeholder="reset.new_password_placeholder" placeholder="Neues Passwort eingeben">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" data-i18n="reset.confirm_password">Passwort best&auml;tigen</label>
+      <input type="password" class="form-input" id="resetConfirmPassword" data-i18n-placeholder="reset.confirm_password_placeholder" placeholder="Neues Passwort wiederholen">
+    </div>
+
+    <button class="btn btn-primary" onclick="submitPasswordReset()">
+      <span data-i18n="reset.submit">Passwort setzen</span>
+    </button>
+
+    <div style="text-align:center;margin-top:16px">
+      <a href="#" onclick="backToLogin();return false" style="color:var(--text-muted);font-size:14px;text-decoration:none" data-i18n="reset.back_to_login">Zur&uuml;ck zum Login</a>
+    </div>
 
     <div class="copyright">TaskFlow &copy; 2026 Florian Hesse &middot; <a href="https://comnic-it.de" target="_blank" style="color:inherit;text-decoration:underline">comnic-it.de</a></div>
   </div>
@@ -2145,13 +2200,10 @@ if (!file_exists(__DIR__ . '/data/users.json') && file_exists(__DIR__ . '/instal
                 <option value="admin" data-i18n="users.role_admin">Admin</option>
               </select>
             </div>
-          </div>
-          <div class="form-group">
-            <label class="form-label" data-i18n="users.role">Rolle</label>
-            <select class="form-input" id="newUserRole">
-              <option value="user" data-i18n="users.role_user">Benutzer</option>
-              <option value="admin" data-i18n="users.role_admin">Admin</option>
-            </select>
+            <div style="grid-column:1/-1">
+              <label class="form-label" data-i18n="users.email">E-Mail</label>
+              <input type="email" class="form-input" id="newUserEmail" data-i18n-placeholder="users.email_placeholder" placeholder="E-Mail-Adresse eingeben">
+            </div>
           </div>
           <div style="display:flex;gap:12px">
             <button class="btn btn-primary btn-sm" onclick="createUser()"><span data-i18n="users.create_submit">Benutzer erstellen</span></button>
@@ -2408,6 +2460,75 @@ if (!file_exists(__DIR__ . '/data/users.json') && file_exists(__DIR__ . '/instal
           </div>
 
           <div id="ldapTestResult" style="display:none"></div>
+        </div>
+
+        <!-- SMTP Settings Card (Admin only, shown via JS) -->
+        <div class="card" id="smtpSettingsCard" style="display:none">
+          <h3 class="card-title" style="margin-bottom:16px" data-i18n="smtp.title">E-Mail / SMTP</h3>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+            <div>
+              <label class="form-label" data-i18n="smtp.host">SMTP-Server</label>
+              <input type="text" class="form-input" id="smtpHost" placeholder="smtp.example.com">
+            </div>
+            <div>
+              <label class="form-label" data-i18n="smtp.port">Port</label>
+              <input type="number" class="form-input" id="smtpPort" value="587">
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+            <div>
+              <label class="form-label" data-i18n="smtp.username">Benutzername</label>
+              <input type="text" class="form-input" id="smtpUsername" placeholder="user@example.com">
+            </div>
+            <div>
+              <label class="form-label" data-i18n="smtp.password">Passwort</label>
+              <input type="password" class="form-input" id="smtpPassword" placeholder="********">
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+            <div>
+              <label class="form-label" data-i18n="smtp.from_email">Absender E-Mail</label>
+              <input type="text" class="form-input" id="smtpFromEmail" placeholder="noreply@example.com">
+            </div>
+            <div>
+              <label class="form-label" data-i18n="smtp.from_name">Absender Name</label>
+              <input type="text" class="form-input" id="smtpFromName" value="TaskFlow">
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:center;margin-bottom:16px">
+            <div>
+              <label class="form-label" data-i18n="smtp.encryption">Verschl&uuml;sselung</label>
+              <select class="form-input" id="smtpEncryption">
+                <option value="tls" data-i18n="smtp.encryption_tls">STARTTLS</option>
+                <option value="ssl" data-i18n="smtp.encryption_ssl">SSL/TLS</option>
+                <option value="none" data-i18n="smtp.encryption_none">Keine</option>
+              </select>
+            </div>
+            <div style="padding-top:24px">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                <input type="checkbox" id="smtpEnabled"> <span data-i18n="smtp.enabled">SMTP aktiviert</span>
+              </label>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:12px;margin-bottom:12px">
+            <button class="btn btn-primary btn-sm" onclick="saveSmtpConfig()"><span data-i18n="smtp.save_btn">Konfiguration speichern</span></button>
+          </div>
+
+          <div style="border-top:1px solid var(--border);padding-top:12px;margin-top:4px">
+            <div style="display:flex;gap:12px;align-items:end">
+              <div style="flex:1">
+                <label class="form-label" data-i18n="smtp.test_email">Empf&auml;nger-E-Mail</label>
+                <input type="email" class="form-input" id="smtpTestEmail" data-i18n-placeholder="smtp.test_email_placeholder" placeholder="test@example.com">
+              </div>
+              <button class="btn btn-secondary btn-sm" onclick="testSmtpConnection()" style="white-space:nowrap"><span data-i18n="smtp.test_btn">Test-E-Mail senden</span></button>
+            </div>
+            <div id="smtpTestResult" style="display:none;margin-top:12px"></div>
+          </div>
         </div>
 
         <div class="card">
