@@ -42,6 +42,19 @@
 - Docker-Unterstützung für einfaches Deployment
 - AD/LDAP-Integration (**Beta** — Anbindung an Active Directory / LDAP-Server)
 
+## Screenshots
+
+<table>
+  <tr>
+    <td align="center"><img src="scr/scr_01.png" alt="Dashboard" width="100%"><br><strong>Dashboard</strong></td>
+    <td align="center"><img src="scr/scr_04.png" alt="Kanban Board" width="100%"><br><strong>Kanban Board</strong></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="scr/scr_03.png" alt="Aufgabenliste" width="100%"><br><strong>Aufgabenliste</strong></td>
+    <td align="center"><img src="scr/scr_02.png" alt="Projektübersicht" width="100%"><br><strong>Projektübersicht</strong></td>
+  </tr>
+</table>
+
 ## Voraussetzungen
 
 - PHP 7.4 oder höher
@@ -220,6 +233,19 @@ Siehe [LICENSE](LICENSE) für Details. Frei nutzbar, veränderbar und verteilbar
 - Automatic data migration system for seamless updates
 - Docker support for easy deployment
 - AD/LDAP integration (**Beta** — connect to Active Directory / LDAP servers)
+
+### Screenshots
+
+<table>
+  <tr>
+    <td align="center"><img src="scr/scr_01.png" alt="Dashboard" width="100%"><br><strong>Dashboard</strong></td>
+    <td align="center"><img src="scr/scr_04.png" alt="Kanban Board" width="100%"><br><strong>Kanban Board</strong></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="scr/scr_03.png" alt="Task List" width="100%"><br><strong>Task List</strong></td>
+    <td align="center"><img src="scr/scr_02.png" alt="Project Overview" width="100%"><br><strong>Project Overview</strong></td>
+  </tr>
+</table>
 
 ### Requirements
 
