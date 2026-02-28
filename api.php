@@ -1,6 +1,6 @@
 <?php
 /**
- * TaskFlow v1.61 - API
+ * TaskFlow v1.70 - API
  * Copyright (c) 2026 Florian Hesse
  * Fischer Str. 11, 16515 Oranienburg
  * https://comnic-it.de
@@ -95,6 +95,17 @@ $messages = [
         'ldap_no_users' => 'Keine Benutzer im LDAP gefunden',
         'ldap_unreachable' => 'LDAP-Server nicht erreichbar',
         'ldap_no_password_change' => 'Passwortänderung für AD/LDAP-Benutzer nicht möglich',
+        'smtp_config_saved' => 'SMTP-Konfiguration gespeichert',
+        'smtp_not_configured' => 'SMTP ist nicht konfiguriert oder deaktiviert',
+        'smtp_test_success' => 'Test-E-Mail erfolgreich gesendet',
+        'smtp_test_failed' => 'Fehler beim Senden der Test-E-Mail',
+        'smtp_email_required' => 'E-Mail-Adresse erforderlich',
+        'reset_email_sent' => 'Falls ein Konto existiert, wurde ein Reset-Link gesendet',
+        'reset_identifier_required' => 'Benutzername oder E-Mail erforderlich',
+        'reset_token_invalid' => 'Ungültiger oder abgelaufener Reset-Link',
+        'reset_password_required' => 'Neues Passwort erforderlich',
+        'reset_success' => 'Passwort erfolgreich zurückgesetzt',
+        'email_updated' => 'E-Mail-Adresse aktualisiert',
     ],
     'en' => [
         'login_required' => 'Username and password required',
@@ -159,6 +170,17 @@ $messages = [
         'ldap_no_users' => 'No users found in LDAP',
         'ldap_unreachable' => 'LDAP server unreachable',
         'ldap_no_password_change' => 'Password change not available for AD/LDAP users',
+        'smtp_config_saved' => 'SMTP configuration saved',
+        'smtp_not_configured' => 'SMTP is not configured or disabled',
+        'smtp_test_success' => 'Test email sent successfully',
+        'smtp_test_failed' => 'Error sending test email',
+        'smtp_email_required' => 'Email address required',
+        'reset_email_sent' => 'If an account exists, a reset link has been sent',
+        'reset_identifier_required' => 'Username or email required',
+        'reset_token_invalid' => 'Invalid or expired reset link',
+        'reset_password_required' => 'New password required',
+        'reset_success' => 'Password reset successfully',
+        'email_updated' => 'Email address updated',
     ],
 ];
 
@@ -211,6 +233,153 @@ function saveLdapConfig($config) {
     global $dataDir;
     $file = $dataDir . '/ldap_config.json';
     file_put_contents($file, json_encode($config, JSON_PRETTY_PRINT), LOCK_EX);
+}
+
+function loadSmtpConfig() {
+    global $dataDir;
+    $file = $dataDir . '/smtp_config.json';
+    if (!file_exists($file)) return null;
+    return json_decode(file_get_contents($file), true);
+}
+
+function saveSmtpConfig($config) {
+    global $dataDir;
+    $file = $dataDir . '/smtp_config.json';
+    file_put_contents($file, json_encode($config, JSON_PRETTY_PRINT), LOCK_EX);
+}
+
+function loadPasswordResets() {
+    global $dataDir;
+    $file = $dataDir . '/password_resets.json';
+    if (!file_exists($file)) return [];
+    return json_decode(file_get_contents($file), true) ?: [];
+}
+
+function savePasswordResets($resets) {
+    global $dataDir;
+    $file = $dataDir . '/password_resets.json';
+    file_put_contents($file, json_encode($resets, JSON_PRETTY_PRINT), LOCK_EX);
+}
+
+function cleanExpiredResets() {
+    $resets = loadPasswordResets();
+    $now = time();
+    $resets = array_values(array_filter($resets, function($r) use ($now) {
+        return $r['expiresAt'] > $now;
+    }));
+    savePasswordResets($resets);
+    return $resets;
+}
+
+function sendSmtpEmail($to, $subject, $body) {
+    $config = loadSmtpConfig();
+    if (!$config || empty($config['enabled']) || empty($config['host'])) {
+        return false;
+    }
+
+    $host = $config['host'];
+    $port = (int)($config['port'] ?? 587);
+    $encryption = $config['encryption'] ?? 'tls';
+    $username = $config['username'] ?? '';
+    $password = $config['password'] ?? '';
+    $fromEmail = $config['from_email'] ?? $username;
+    $fromName = $config['from_name'] ?? 'TaskFlow';
+
+    $timeout = 15;
+    $errno = 0;
+    $errstr = '';
+
+    // Connect
+    if ($encryption === 'ssl') {
+        $socket = @fsockopen('ssl://' . $host, $port, $errno, $errstr, $timeout);
+    } else {
+        $socket = @fsockopen($host, $port, $errno, $errstr, $timeout);
+    }
+
+    if (!$socket) {
+        return false;
+    }
+
+    stream_set_timeout($socket, $timeout);
+
+    // Helper to read response
+    $readResponse = function() use ($socket) {
+        $response = '';
+        while ($line = fgets($socket, 512)) {
+            $response .= $line;
+            if (isset($line[3]) && $line[3] === ' ') break;
+        }
+        return $response;
+    };
+
+    // Helper to send command
+    $sendCmd = function($cmd) use ($socket, $readResponse) {
+        fwrite($socket, $cmd . "\r\n");
+        return $readResponse();
+    };
+
+    // Read greeting
+    $readResponse();
+
+    // EHLO
+    $sendCmd('EHLO localhost');
+
+    // STARTTLS if needed
+    if ($encryption === 'tls') {
+        $sendCmd('STARTTLS');
+        $cryptoMethod = STREAM_CRYPTO_METHOD_TLS_CLIENT;
+        if (defined('STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT')) {
+            $cryptoMethod = STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT;
+        }
+        if (!@stream_socket_enable_crypto($socket, true, $cryptoMethod)) {
+            fclose($socket);
+            return false;
+        }
+        $sendCmd('EHLO localhost');
+    }
+
+    // AUTH LOGIN
+    if (!empty($username) && !empty($password)) {
+        $sendCmd('AUTH LOGIN');
+        $sendCmd(base64_encode($username));
+        $authResponse = $sendCmd(base64_encode($password));
+        if (strpos($authResponse, '235') === false) {
+            fclose($socket);
+            return false;
+        }
+    }
+
+    // MAIL FROM
+    $sendCmd('MAIL FROM:<' . $fromEmail . '>');
+
+    // RCPT TO
+    $rcptResponse = $sendCmd('RCPT TO:<' . $to . '>');
+    if (strpos($rcptResponse, '250') === false && strpos($rcptResponse, '251') === false) {
+        fclose($socket);
+        return false;
+    }
+
+    // DATA
+    $sendCmd('DATA');
+
+    // Build message
+    $boundary = md5(uniqid(time()));
+    $headers = "From: =?UTF-8?B?" . base64_encode($fromName) . "?= <" . $fromEmail . ">\r\n";
+    $headers .= "To: <" . $to . ">\r\n";
+    $headers .= "Subject: =?UTF-8?B?" . base64_encode($subject) . "?=\r\n";
+    $headers .= "MIME-Version: 1.0\r\n";
+    $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
+    $headers .= "Content-Transfer-Encoding: base64\r\n";
+    $headers .= "Date: " . date('r') . "\r\n";
+    $headers .= "Message-ID: <" . md5(uniqid()) . "@" . gethostname() . ">\r\n";
+
+    $message = $headers . "\r\n" . chunk_split(base64_encode($body));
+
+    $dataResponse = $sendCmd($message . "\r\n.");
+    $sendCmd('QUIT');
+    fclose($socket);
+
+    return strpos($dataResponse, '250') !== false;
 }
 
 function loadProjects() {
@@ -385,6 +554,19 @@ function getDataMigrations() {
             foreach ($users as &$u) {
                 if (!isset($u['source'])) {
                     $u['source'] = 'local';
+                    $changed = true;
+                }
+            }
+            if ($changed) saveUsers($users);
+        },
+
+        // v7: Add email field to all users (default: empty)
+        7 => function() {
+            $users = loadUsers();
+            $changed = false;
+            foreach ($users as &$u) {
+                if (!isset($u['email'])) {
+                    $u['email'] = '';
                     $changed = true;
                 }
             }
@@ -611,6 +793,8 @@ switch ($action) {
             }
         }
 
+        $email = $input['email'] ?? '';
+
         $newId = count($users) > 0 ? max(array_column($users, 'id')) + 1 : 1;
         $newUser = [
             'id' => $newId,
@@ -619,6 +803,7 @@ switch ($action) {
             'name' => $name,
             'role' => $role,
             'source' => 'local',
+            'email' => $email,
             'createdAt' => date('c')
         ];
 
@@ -1965,6 +2150,224 @@ switch ($action) {
         header('Accept-Ranges: bytes');
         readfile($filePath);
         exit;
+
+    case 'getSmtpConfig':
+        if (!isset($_SESSION['user'])) {
+            response(false, null, msg('not_logged_in'));
+        }
+        requireAdmin();
+
+        $config = loadSmtpConfig();
+        if ($config && !empty($config['password'])) {
+            $config['password'] = '********';
+        }
+        response(true, $config);
+        break;
+
+    case 'saveSmtpConfig':
+        if (!isset($_SESSION['user'])) {
+            response(false, null, msg('not_logged_in'));
+        }
+        requireAdmin();
+
+        $config = [
+            'enabled' => !empty($input['enabled']),
+            'host' => $input['host'] ?? '',
+            'port' => (int)($input['port'] ?? 587),
+            'encryption' => $input['encryption'] ?? 'tls',
+            'username' => $input['username'] ?? '',
+            'password' => $input['password'] ?? '',
+            'from_email' => $input['from_email'] ?? '',
+            'from_name' => $input['from_name'] ?? 'TaskFlow',
+        ];
+
+        // Keep existing password if placeholder was sent
+        if ($config['password'] === '********' || $config['password'] === '') {
+            $existing = loadSmtpConfig();
+            if ($existing && !empty($existing['password'])) {
+                $config['password'] = $existing['password'];
+            }
+        }
+
+        saveSmtpConfig($config);
+        response(true, null, msg('smtp_config_saved'));
+        break;
+
+    case 'testSmtpConfig':
+        if (!isset($_SESSION['user'])) {
+            response(false, null, msg('not_logged_in'));
+        }
+        requireAdmin();
+
+        $testEmail = $input['email'] ?? '';
+        if (empty($testEmail)) {
+            response(false, null, msg('smtp_email_required'));
+        }
+
+        $config = loadSmtpConfig();
+        if (!$config || empty($config['enabled']) || empty($config['host'])) {
+            response(false, null, msg('smtp_not_configured'));
+        }
+
+        $subject = 'TaskFlow - SMTP Test';
+        $body = '<html><body style="font-family:Arial,sans-serif;padding:20px">'
+            . '<h2 style="color:#667eea">TaskFlow SMTP Test</h2>'
+            . '<p>This is a test email from TaskFlow to verify your SMTP configuration.</p>'
+            . '<p style="color:#64748b;font-size:13px">Sent at: ' . date('Y-m-d H:i:s') . '</p>'
+            . '</body></html>';
+
+        $sent = sendSmtpEmail($testEmail, $subject, $body);
+        if ($sent) {
+            response(true, null, msg('smtp_test_success'));
+        } else {
+            response(false, null, msg('smtp_test_failed'));
+        }
+        break;
+
+    case 'requestPasswordReset':
+        $identifier = $input['identifier'] ?? '';
+        if (empty($identifier)) {
+            response(true, null, msg('reset_email_sent'));
+        }
+
+        // Always respond the same way to prevent user enumeration
+        $users = loadUsers();
+        $foundUser = null;
+
+        foreach ($users as $u) {
+            if (($u['source'] ?? 'local') !== 'local') continue;
+            if ($u['username'] === $identifier || (!empty($u['email']) && strtolower($u['email']) === strtolower($identifier))) {
+                $foundUser = $u;
+                break;
+            }
+        }
+
+        if ($foundUser && !empty($foundUser['email'])) {
+            $smtpConfig = loadSmtpConfig();
+            if ($smtpConfig && !empty($smtpConfig['enabled'])) {
+                // Generate token
+                $token = bin2hex(random_bytes(32));
+                $tokenHash = hash('sha256', $token);
+
+                // Clean expired and remove existing for this user
+                $resets = cleanExpiredResets();
+                $resets = array_values(array_filter($resets, function($r) use ($foundUser) {
+                    return $r['userId'] !== $foundUser['id'];
+                }));
+
+                $resets[] = [
+                    'userId' => $foundUser['id'],
+                    'tokenHash' => $tokenHash,
+                    'expiresAt' => time() + 3600,
+                    'createdAt' => date('c')
+                ];
+                savePasswordResets($resets);
+
+                // Build reset URL
+                $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+                $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+                $path = dirname($_SERVER['SCRIPT_NAME']);
+                $resetUrl = $protocol . '://' . $host . $path . '/index.php?resetToken=' . $token;
+
+                $subject = 'TaskFlow - ' . ($lang === 'de' ? 'Passwort zurücksetzen' : 'Password Reset');
+                $body = '<html><body style="font-family:Arial,sans-serif;padding:20px;background:#f8fafc">'
+                    . '<div style="max-width:500px;margin:0 auto;background:#fff;border-radius:12px;padding:32px;box-shadow:0 2px 8px rgba(0,0,0,.1)">'
+                    . '<h2 style="color:#667eea;margin-top:0">TaskFlow</h2>'
+                    . '<p>' . ($lang === 'de' ? 'Hallo ' . htmlspecialchars($foundUser['name']) . ',' : 'Hello ' . htmlspecialchars($foundUser['name']) . ',') . '</p>'
+                    . '<p>' . ($lang === 'de' ? 'Klicke auf den folgenden Link, um dein Passwort zurückzusetzen:' : 'Click the following link to reset your password:') . '</p>'
+                    . '<p style="text-align:center;margin:24px 0"><a href="' . htmlspecialchars($resetUrl) . '" style="display:inline-block;padding:12px 32px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;text-decoration:none;border-radius:8px;font-weight:600">'
+                    . ($lang === 'de' ? 'Passwort zurücksetzen' : 'Reset Password')
+                    . '</a></p>'
+                    . '<p style="color:#64748b;font-size:13px">' . ($lang === 'de' ? 'Dieser Link ist 1 Stunde gültig.' : 'This link is valid for 1 hour.') . '</p>'
+                    . '<p style="color:#94a3b8;font-size:12px">' . ($lang === 'de' ? 'Falls du kein Passwort-Reset angefordert hast, ignoriere diese E-Mail.' : 'If you did not request a password reset, please ignore this email.') . '</p>'
+                    . '</div></body></html>';
+
+                sendSmtpEmail($foundUser['email'], $subject, $body);
+            }
+        }
+
+        // Always same response
+        response(true, null, msg('reset_email_sent'));
+        break;
+
+    case 'resetPassword':
+        $token = $input['token'] ?? '';
+        $newPassword = $input['password'] ?? '';
+
+        if (empty($token)) {
+            response(false, null, msg('reset_token_invalid'));
+        }
+        if (empty($newPassword)) {
+            response(false, null, msg('reset_password_required'));
+        }
+
+        $tokenHash = hash('sha256', $token);
+        $resets = cleanExpiredResets();
+
+        $foundReset = null;
+        foreach ($resets as $r) {
+            if (hash_equals($r['tokenHash'], $tokenHash)) {
+                $foundReset = $r;
+                break;
+            }
+        }
+
+        if (!$foundReset) {
+            response(false, null, msg('reset_token_invalid'));
+        }
+
+        // Update password
+        $users = loadUsers();
+        $updated = false;
+        foreach ($users as &$u) {
+            if ($u['id'] === $foundReset['userId']) {
+                $u['password'] = password_hash($newPassword, PASSWORD_DEFAULT);
+                $updated = true;
+                break;
+            }
+        }
+
+        if ($updated) {
+            saveUsers($users);
+
+            // Remove used token
+            $resets = array_values(array_filter($resets, function($r) use ($foundReset) {
+                return $r['userId'] !== $foundReset['userId'];
+            }));
+            savePasswordResets($resets);
+
+            response(true, null, msg('reset_success'));
+        } else {
+            response(false, null, msg('reset_token_invalid'));
+        }
+        break;
+
+    case 'updateUserEmail':
+        if (!isset($_SESSION['user'])) {
+            response(false, null, msg('not_logged_in'));
+        }
+        requireAdmin();
+
+        $userId = $input['id'] ?? 0;
+        $email = $input['email'] ?? '';
+
+        $users = loadUsers();
+        $found = false;
+        foreach ($users as &$u) {
+            if ($u['id'] == $userId) {
+                $u['email'] = $email;
+                $found = true;
+                break;
+            }
+        }
+
+        if ($found) {
+            saveUsers($users);
+            response(true, null, msg('email_updated'));
+        } else {
+            response(false, null, msg('user_not_found'));
+        }
+        break;
 
     default:
         response(false, null, msg('invalid_action'));

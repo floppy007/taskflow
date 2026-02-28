@@ -1,5 +1,5 @@
 /**
- * TaskFlow v1.61 - App
+ * TaskFlow v1.70 - App
  * Copyright (c) 2026 Florian Hesse
  * Fischer Str. 11, 16515 Oranienburg
  * https://comnic-it.de
@@ -233,6 +233,16 @@ async function init() {
   applyLogo();
   loadVersion();
 
+  // Check for password reset token in URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const resetToken = urlParams.get('resetToken');
+  if (resetToken) {
+    showPasswordResetForm(resetToken);
+    // Clean URL without reload
+    window.history.replaceState({}, document.title, window.location.pathname);
+    return;
+  }
+
   // Check if user is logged in
   const sessionResult = await apiCall('getSession');
   if (sessionResult.success) {
@@ -245,7 +255,22 @@ async function init() {
 // User Management
 function showLogin() {
   document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('loginUsername').focus();
 }
+
+// Enter-Key auf Login-Feldern
+document.addEventListener('DOMContentLoaded', () => {
+  ['loginUsername', 'loginPassword'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+  });
+  const resetId = document.getElementById('resetIdentifier');
+  if (resetId) resetId.addEventListener('keydown', e => { if (e.key === 'Enter') requestPasswordReset(); });
+  ['resetNewPassword', 'resetConfirmPassword'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('keydown', e => { if (e.key === 'Enter') submitPasswordReset(); });
+  });
+});
 
 async function login() {
   const username = document.getElementById('loginUsername').value.trim();
@@ -276,6 +301,69 @@ async function logout() {
     document.getElementById('loginUsername').value = '';
     document.getElementById('loginPassword').value = '';
     showLogin();
+  }
+}
+
+// Password Reset Flow
+function showForgotPassword() {
+  document.getElementById('loginBox').style.display = 'none';
+  document.getElementById('forgotPasswordBox').style.display = 'block';
+  document.getElementById('resetPasswordBox').style.display = 'none';
+  document.getElementById('resetIdentifier').value = '';
+  document.getElementById('resetIdentifier').focus();
+}
+
+function backToLogin() {
+  document.getElementById('loginBox').style.display = 'block';
+  document.getElementById('forgotPasswordBox').style.display = 'none';
+  document.getElementById('resetPasswordBox').style.display = 'none';
+}
+
+async function requestPasswordReset() {
+  const identifier = document.getElementById('resetIdentifier').value.trim();
+  if (!identifier) {
+    showToast(t('reset.title'), t('reset.password_required'), 'warning');
+    return;
+  }
+
+  await apiCall('requestPasswordReset', { identifier });
+  showToast(t('reset.title'), t('reset.email_sent'), 'success');
+  backToLogin();
+}
+
+let pendingResetToken = null;
+
+function showPasswordResetForm(token) {
+  pendingResetToken = token;
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('loginBox').style.display = 'none';
+  document.getElementById('forgotPasswordBox').style.display = 'none';
+  document.getElementById('resetPasswordBox').style.display = 'block';
+  document.getElementById('resetNewPassword').value = '';
+  document.getElementById('resetConfirmPassword').value = '';
+  document.getElementById('resetNewPassword').focus();
+}
+
+async function submitPasswordReset() {
+  const pw = document.getElementById('resetNewPassword').value;
+  const pw2 = document.getElementById('resetConfirmPassword').value;
+
+  if (!pw) {
+    showToast(t('reset.title'), t('reset.password_required'), 'warning');
+    return;
+  }
+  if (pw !== pw2) {
+    showToast(t('reset.title'), t('reset.password_mismatch'), 'warning');
+    return;
+  }
+
+  const result = await apiCall('resetPassword', { token: pendingResetToken, password: pw });
+  if (result.success) {
+    showToast(t('reset.title'), t('reset.success'), 'success');
+    pendingResetToken = null;
+    backToLogin();
+  } else {
+    showToast(t('reset.title'), result.message || t('reset.error'), 'error');
   }
 }
 
@@ -431,8 +519,9 @@ function showSettings() {
     pwCard.style.display = (currentUser.source === 'ldap') ? 'none' : '';
   }
 
-  // Load LDAP config for admins
+  // Load LDAP and SMTP config for admins
   loadLdapConfig();
+  loadSmtpConfig();
 }
 
 function hideAllViews() {
@@ -627,12 +716,17 @@ function renderUsers() {
       ? '<span style="font-size:11px;padding:2px 8px;border-radius:6px;background:linear-gradient(135deg,#3b82f6,#06b6d4);color:#fff;font-weight:600">AD/LDAP</span>'
       : '<span style="font-size:11px;padding:2px 8px;border-radius:6px;background:var(--bg-secondary);color:var(--text-muted);border:1px solid var(--border);font-weight:500">' + t('users.source_local') + '</span>';
 
+    const emailDisplay = u.email
+      ? '<div style="font-size:13px;color:var(--text-muted)">✉ ' + escapeHtml(u.email) + '</div>'
+      : '';
+
     return `
     <div style="display:flex;align-items:center;gap:16px;padding:16px;border-bottom:1px solid var(--border)">
       <div class="user-avatar">${u.name.charAt(0).toUpperCase()}</div>
       <div style="flex:1">
         <div style="font-weight:600;margin-bottom:4px">${escapeHtml(u.name)}</div>
         <div style="font-size:14px;color:var(--text-muted)">@${escapeHtml(u.username)}</div>
+        ${emailDisplay}
       </div>
       ${sourceBadge}
       <span class="${badgeClass}">${badgeIcon} ${escapeHtml(badgeLabel)}</span>
@@ -1137,13 +1231,14 @@ async function createUser() {
   const username = document.getElementById('newUserUsername').value;
   const password = document.getElementById('newUserPassword').value;
   const role = document.getElementById('newUserRole').value;
+  const email = document.getElementById('newUserEmail') ? document.getElementById('newUserEmail').value.trim() : '';
 
   if (!name || !username || !password) {
     showToast(t('users.create_title'), t('register.alert_fields'), 'warning');
     return;
   }
 
-  const result = await apiCall('createUser', {name, username, password, role});
+  const result = await apiCall('createUser', {name, username, password, role, email});
   if (result.success) {
     closeCreateUserForm();
     showToast(t('users.create_title'), result.message, 'success');
@@ -1973,6 +2068,67 @@ async function importLdapUsers() {
     }
   } else {
     showToast(t('ldap.import_btn'), result.message || t('ldap.import_error'), 'error');
+  }
+}
+
+// SMTP Config
+async function loadSmtpConfig() {
+  const card = document.getElementById('smtpSettingsCard');
+  if (!card || currentUser.role !== 'admin') return;
+  card.style.display = 'block';
+
+  const result = await apiCall('getSmtpConfig');
+  if (result.success && result.data) {
+    const c = result.data;
+    document.getElementById('smtpHost').value = c.host || '';
+    document.getElementById('smtpPort').value = c.port || 587;
+    document.getElementById('smtpUsername').value = c.username || '';
+    document.getElementById('smtpPassword').value = c.password || '';
+    document.getElementById('smtpFromEmail').value = c.from_email || '';
+    document.getElementById('smtpFromName').value = c.from_name || 'TaskFlow';
+    document.getElementById('smtpEncryption').value = c.encryption || 'tls';
+    document.getElementById('smtpEnabled').checked = !!c.enabled;
+  }
+}
+
+async function saveSmtpConfig() {
+  const config = {
+    host: document.getElementById('smtpHost').value.trim(),
+    port: parseInt(document.getElementById('smtpPort').value) || 587,
+    username: document.getElementById('smtpUsername').value.trim(),
+    password: document.getElementById('smtpPassword').value,
+    from_email: document.getElementById('smtpFromEmail').value.trim(),
+    from_name: document.getElementById('smtpFromName').value.trim(),
+    encryption: document.getElementById('smtpEncryption').value,
+    enabled: document.getElementById('smtpEnabled').checked
+  };
+
+  const result = await apiCall('saveSmtpConfig', config);
+  if (result.success) {
+    showToast(t('smtp.title'), result.message, 'success');
+  } else {
+    showToast(t('smtp.title'), result.message || t('smtp.save_error'), 'error');
+  }
+}
+
+async function testSmtpConnection() {
+  const email = document.getElementById('smtpTestEmail').value.trim();
+  if (!email) {
+    showToast(t('smtp.title'), t('smtp.save_error'), 'warning');
+    return;
+  }
+
+  const resultDiv = document.getElementById('smtpTestResult');
+  resultDiv.style.display = 'block';
+  resultDiv.innerHTML = '<div style="padding:12px;background:var(--bg-secondary);border-radius:8px;color:var(--text-muted)">Sending...</div>';
+
+  const result = await apiCall('testSmtpConfig', { email });
+  if (result.success) {
+    resultDiv.innerHTML = '<div style="padding:12px;background:var(--success);color:#fff;border-radius:8px">' +
+      escapeHtml(result.message) + '</div>';
+  } else {
+    resultDiv.innerHTML = '<div style="padding:12px;background:var(--danger);color:#fff;border-radius:8px">' +
+      escapeHtml(result.message) + '</div>';
   }
 }
 
