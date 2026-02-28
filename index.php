@@ -6,7 +6,7 @@ if (!file_exists(__DIR__ . '/data/users.json') && file_exists(__DIR__ . '/instal
 }
 ?>
 <!--
-  TaskFlow v1.70
+  TaskFlow v1.71
   Copyright (c) 2026 Florian Hesse
   Fischer Str. 11, 16515 Oranienburg
   https://comnic-it.de
