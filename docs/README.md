@@ -1,5 +1,6 @@
 # Dokumentation
 
+- [Changelog](../CHANGELOG.md)
 - [Systemüberblick](system-overview.md)
 - [Architektur](architecture.md)
 - [Datenmodell](data-model.md)

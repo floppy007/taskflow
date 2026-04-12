@@ -57,6 +57,7 @@
 
 ## Zusatzdokumentation
 
+- [Changelog](CHANGELOG.md)
 - [Dokumentationsübersicht](docs/README.md)
 - [Systemüberblick](docs/system-overview.md)
 - [Architektur](docs/architecture.md)
