@@ -55,6 +55,16 @@
   </tr>
 </table>
 
+## Zusatzdokumentation
+
+- [Dokumentationsübersicht](docs/README.md)
+- [Systemüberblick](docs/system-overview.md)
+- [Architektur](docs/architecture.md)
+- [Datenmodell](docs/data-model.md)
+- [Frontend / app.js](docs/app.md)
+- [API / api.php](docs/api.md)
+- [Installation / Docker](docs/install.md)
+
 ## Voraussetzungen
 
 - PHP 7.4 oder höher

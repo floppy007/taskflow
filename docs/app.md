@@ -208,13 +208,11 @@
 
 ---
 
-## Logo-Verwaltung
+## Logo-Anwendung
 
 | Funktion | Parameter | Beschreibung |
 |----------|-----------|-------------|
-| `uploadLogo(event)` | `event` (File-Input-Event) | Lädt eigenes Logo hoch (max 2MB, PNG/JPEG/SVG) nach localStorage |
-| `removeLogo()` | – | Entfernt eigenes Logo aus localStorage |
-| `applyLogo()` | – | Wendet Logo auf Login/Sidebar an (aus localStorage oder Standard) |
+| `applyLogo()` | – | Wendet das konfigurierte Logo auf Login-, Forgot-, Reset- und Sidebar-Bereich an |
 
 ---
 

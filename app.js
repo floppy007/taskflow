@@ -1,5 +1,5 @@
 /**
- * TaskFlow v1.71 - App
+ * TaskFlow v1.72 - App
  * Copyright (c) 2026 Florian Hesse
  * Fischer Str. 11, 16515 Oranienburg
  * https://comnic-it.de
@@ -1283,54 +1283,18 @@ async function toggleUserRole(id, newRole) {
   }
 }
 
-// Logo Management
-function uploadLogo(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-
-  if (!file.type.match(/^image\/(png|jpeg|svg\+xml)$/)) {
-    showToast(t('settings.logo_title'), t('settings.logo_invalid'), 'warning');
-    event.target.value = '';
-    return;
-  }
-
-  if (file.size > 2 * 1024 * 1024) {
-    showToast(t('settings.logo_title'), t('settings.logo_too_big'), 'warning');
-    event.target.value = '';
-    return;
-  }
-
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    localStorage.setItem('taskflow_logo', e.target.result);
-    applyLogo();
-  };
-  reader.readAsDataURL(file);
-  event.target.value = '';
-}
-
-function removeLogo() {
-  localStorage.removeItem('taskflow_logo');
-  applyLogo();
-}
-
 function applyLogo() {
   const logoDataUrl = localStorage.getItem('taskflow_logo');
   const loginLogo = document.getElementById('loginLogo');
+  const forgotLogo = document.getElementById('forgotLogo');
+  const resetLogo = document.getElementById('resetLogo');
   const sidebarLogo = document.getElementById('sidebarLogo');
-  const logoPreview = document.getElementById('logoPreview');
-  const logoPlaceholder = document.getElementById('logoPlaceholder');
-
   const logoSrc = logoDataUrl || 'logo.png';
 
   if (loginLogo) loginLogo.innerHTML = `<img src="${logoSrc}" alt="TaskFlow" class="login-logo-img">`;
+  if (forgotLogo) forgotLogo.innerHTML = `<img src="${logoSrc}" alt="TaskFlow" class="login-logo-img">`;
+  if (resetLogo) resetLogo.innerHTML = `<img src="${logoSrc}" alt="TaskFlow" class="login-logo-img">`;
   if (sidebarLogo) sidebarLogo.innerHTML = `<img src="${logoSrc}" alt="TaskFlow" class="sidebar-logo-img">`;
-
-  if (logoPreview) {
-    logoPreview.src = logoDataUrl || '';
-    logoPreview.style.display = logoDataUrl ? 'block' : 'none';
-  }
-  if (logoPlaceholder) logoPlaceholder.style.display = logoDataUrl ? 'none' : 'block';
 }
 
 // Theme Management

@@ -49,6 +49,28 @@
 
 ---
 
+## Betriebsnotizen
+
+### Session-Verhalten
+
+- Session-Cookies werden mit `HttpOnly` und `SameSite=Lax` gestartet
+- nach erfolgreichem Login wird die Session-ID regeneriert
+- beim Logout wird die Session vollständig beendet
+
+### API / CORS / Debug
+
+- Debug-Ausgaben in `api.php` sind standardmäßig deaktiviert
+- `TASKFLOW_DEBUG=true` aktiviert PHP-Fehlerausgabe bewusst für Diagnosezwecke
+- CORS wird nicht mehr pauschal mit `*` geöffnet, sondern nur same-origin zugelassen
+
+### Update-Verhalten
+
+- In-App-Updates brechen ab, wenn lokale Änderungen im Git-Arbeitsbaum vorhanden sind
+- es werden keine lokalen Anpassungen mehr automatisch gestasht oder verworfen
+- für Docker bleibt der empfohlene Weg weiterhin: neues Image ziehen und Container neu starten
+
+---
+
 ## Frontend-Einstieg (`index.php`)
 
 ### Logik

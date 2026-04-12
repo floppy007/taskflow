@@ -9,7 +9,7 @@
 ### `login`
 - **Methode:** POST
 - **Parameter:** `username`, `password`
-- **Beschreibung:** Authentifiziert Benutzer (lokal oder LDAP). Setzt Session.
+- **Beschreibung:** Authentifiziert Benutzer (lokal oder LDAP). Setzt Session und regeneriert die Session-ID nach erfolgreichem Login.
 - **Rückgabe:** User-Objekt (id, username, name, role, source)
 
 ### `register`
@@ -21,7 +21,7 @@
 ### `logout`
 - **Methode:** POST
 - **Parameter:** –
-- **Beschreibung:** Zerstört die aktuelle Session.
+- **Beschreibung:** Leert Session-Daten, entfernt das Session-Cookie und zerstört die aktuelle Session.
 - **Rückgabe:** Erfolgsbestätigung
 
 ### `getSession`
@@ -274,7 +274,7 @@
 ### `doUpdate`
 - **Methode:** POST
 - **Parameter:** –
-- **Beschreibung:** Führt `git pull` aus. Stasht lokale Änderungen, zieht von origin/main, triggert Datenmigrationen.
+- **Beschreibung:** Führt ein `git pull --ff-only` aus. Bricht ab, wenn lokale Änderungen im Arbeitsbaum vorhanden sind. Triggert danach Datenmigrationen.
 - **Rückgabe:** `{message, version, output}`
 
 ---

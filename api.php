@@ -1,17 +1,27 @@
 <?php
 /**
- * TaskFlow v1.71 - API
+ * TaskFlow v1.72 - API
  * Copyright (c) 2026 Florian Hesse
  * Fischer Str. 11, 16515 Oranienburg
  * https://comnic-it.de
  * Alle Rechte vorbehalten.
  */
-// Error reporting for debugging (remove in production)
+// Runtime / debug mode
+$debugMode = filter_var(getenv('TASKFLOW_DEBUG') ?: 'false', FILTER_VALIDATE_BOOLEAN);
 error_reporting(E_ALL);
-ini_set('display_errors', 1);
+ini_set('display_errors', $debugMode ? '1' : '0');
 
-// CORS Headers
-header('Access-Control-Allow-Origin: *');
+// Same-origin aware CORS headers
+$requestOrigin = $_SERVER['HTTP_ORIGIN'] ?? '';
+$requestHost = $_SERVER['HTTP_HOST'] ?? '';
+if ($requestOrigin && $requestHost) {
+    $originHost = parse_url($requestOrigin, PHP_URL_HOST) ?? '';
+    $serverHost = explode(':', $requestHost)[0];
+    if ($originHost !== '' && strcasecmp($originHost, $serverHost) === 0) {
+        header('Access-Control-Allow-Origin: ' . $requestOrigin);
+        header('Vary: Origin');
+    }
+}
 header('Access-Control-Allow-Methods: POST, GET, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
 header('Content-Type: application/json');
@@ -23,6 +33,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 // Start session
+session_set_cookie_params([
+    'secure' => (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'),
+    'httponly' => true,
+    'samesite' => 'Lax',
+]);
 session_start();
 
 // i18n - Determine language
@@ -682,6 +697,7 @@ switch ($action) {
         }
 
         if ($authenticated) {
+            session_regenerate_id(true);
             $user = $foundUser;
             $user['role'] = $user['role'] ?? 'admin';
             unset($user['password']);
@@ -698,6 +714,11 @@ switch ($action) {
         break;
 
     case 'logout':
+        $_SESSION = [];
+        if (ini_get('session.use_cookies')) {
+            $params = session_get_cookie_params();
+            setcookie(session_name(), '', time() - 42000, $params['path'], $params['domain'], $params['secure'], $params['httponly']);
+        }
         session_destroy();
         response(true, null, msg('logout_success'));
         break;
@@ -1268,30 +1289,27 @@ switch ($action) {
             break;
         }
 
-        // Lokale Änderungen verwerfen und sauber updaten
-        exec("cd " . escapeshellarg($projectDir) . " && $gitPath stash 2>&1");
+        // Keine lokalen Änderungen automatisch verwerfen
+        $dirtyOutput = [];
+        $dirtyReturn = 0;
+        exec("cd " . escapeshellarg($projectDir) . " && $gitPath status --porcelain 2>&1", $dirtyOutput, $dirtyReturn);
+        if ($dirtyReturn !== 0) {
+            response(false, ['output' => implode("\n", $dirtyOutput)], msg('update_failed'));
+            break;
+        }
+        if (trim(implode("\n", $dirtyOutput)) !== '') {
+            response(false, ['output' => implode("\n", $dirtyOutput)], 'Lokale Änderungen vorhanden. Update abgebrochen.');
+            break;
+        }
 
         // Git pull ausführen
         $output = [];
         $returnCode = 0;
-        exec("cd " . escapeshellarg($projectDir) . " && $gitPath pull origin main 2>&1", $output, $returnCode);
+        exec("cd " . escapeshellarg($projectDir) . " && $gitPath pull --ff-only origin main 2>&1", $output, $returnCode);
 
         if ($returnCode !== 0) {
-            // Pull fehlgeschlagen - Stash wiederherstellen
-            exec("cd " . escapeshellarg($projectDir) . " && $gitPath stash pop 2>&1");
             response(false, ['output' => implode("\n", $output)], msg('update_failed'));
             break;
-        }
-
-        // Stash pop versuchen, bei Konflikten sauber aufräumen
-        $stashOutput = [];
-        $stashReturn = 0;
-        exec("cd " . escapeshellarg($projectDir) . " && $gitPath stash pop 2>&1", $stashOutput, $stashReturn);
-
-        if ($stashReturn !== 0) {
-            // Konflikte -> aufräumen: Merge abbrechen und Stash verwerfen
-            exec("cd " . escapeshellarg($projectDir) . " && $gitPath checkout . 2>&1");
-            exec("cd " . escapeshellarg($projectDir) . " && $gitPath stash drop 2>&1");
         }
 
         // Run data migrations after code update
